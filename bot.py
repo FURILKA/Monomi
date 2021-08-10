@@ -26,7 +26,7 @@ bot.mysql = mySQLConnector(
 # ==================================================================================================================================================================
 def load_cogs(reload=False):
     bot.LLC.addlog('Загружаем коги')
-    for filename in os.listdir('./cogs'):
+    for filename in os.listdir(os.path.dirname(os.path.realpath(__file__))+'/cogs'):
         if filename.endswith('.py'):
             fn = f'cogs.{filename[:-3]}'
             if reload==True:

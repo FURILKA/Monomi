@@ -30,21 +30,18 @@ class admin(commands.Cog):
     async def isAdmin(self,ctx):
         try:
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # По-умолчанию считаем, что инициатор команды не админ, а дальше посмотрим
-            isAdmin = False
+            # Проверяем, является ли пользователь админом сервера. Если является - больше ничего делать не нужно, если не является - будем смотреть дальше
+            isAdmin = ctx.author.guild_permissions.administrator
+            if isAdmin == True: return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # Если на сервере не заданы админские роли - значит каждый пользователь там: админ
+            # Если админские роли заданы - проверяем, есть ли одна из этих ролей у пользователя, если есть - значит он админ, если нет - значит НЕ админ
             admin_roles = self.GetRolesByGuildID(ctx.guild.id,'admin')
-            if admin_roles == []:
-                isAdmin = True
-                return(isAdmin)
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # Если админские роли заданы - проверяем, есть ли одна из этих ролей у пользователя
-            for role in ctx.author.roles:
-                # Если найденная роль юзера является одной из ролью списка админов по данному серверу - значит инициатор команды админ
-                if str(role.id) in admin_roles:
-                    isAdmin = True
-                    return(isAdmin)
+            if admin_roles != [] and admin_roles != ():
+                for role in ctx.author.roles:
+                    # Если найденная роль юзера является одной из ролью списка админов по данному серверу - значит инициатор команды админ
+                    if str(role.id) in admin_roles:
+                        isAdmin = True
+                        return(isAdmin)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Роли на сервере заданы, но у пользователя их нет. Даём ему соответствующее оповещение и возвращаем False
             if isAdmin == False:
@@ -52,15 +49,15 @@ class admin(commands.Cog):
                 msgtext  = 'У тебя нет прав для выполнения данной команды\n'
                 msgtext += 'Данная команда доступна только для админов бота\n'
                 msgtext += 'Админами бота являются пользователи с ролью:\n\n'
-                guild_admin_roles = self.admin_roles[str(ctx.guild.id)]
-                for role_id in guild_admin_roles:
+                for role_id in admin_roles:
                     role = ctx.guild.get_role(int(role_id))
                     if role != None:
-                        if len(guild_admin_roles) > 1:
-                            msgtext += f'{str(1+guild_admin_roles.index(role_id))}) {role.mention}\n'
+                        if len(admin_roles) > 1:
+                            msgtext += f'{str(1+admin_roles.index(role_id))}) {role.mention}\n'
                         else:
                             msgtext += f'{role.mention}\n'
-                embed = discord.Embed(description = msgtext, color = color['red'])
+                embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+                embed.add_field(name=f':x:', value=msgtext, inline=False)
                 await ctx.send(embed=embed)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             return(isAdmin)
@@ -134,9 +131,12 @@ class admin(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
-            msgtext = f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
             msgtext += f'Проверь корректность указания названий ролей'
-            embed = discord.Embed(description = msgtext, color = color['red'])
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
@@ -206,9 +206,12 @@ class admin(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
-            msgtext = f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
             msgtext += f'Проверь корректность указания названий ролей'
-            embed = discord.Embed(description = msgtext, color = color['red'])
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
@@ -278,9 +281,12 @@ class admin(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
-            msgtext = f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
             msgtext += f'Проверь корректность указания названий ролей'
-            embed = discord.Embed(description = msgtext, color = color['red'])
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************

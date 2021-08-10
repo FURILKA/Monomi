@@ -31,17 +31,14 @@ class admin(commands.Cog):
     async def IsAdminOrModerator(self,ctx):
         try:
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # По-умолчанию считаем, что инициатор команды не админ и не модератор, а дальше посмотрим
-            IsAdminOrModerator = False
+            # Проверяем, является ли пользователь админом сервера. Если является - больше ничего делать не нужно, если не является - будем смотреть дальше
+            IsAdminOrModerator = ctx.author.guild_permissions.administrator
+            if IsAdminOrModerator == True: return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # Если на сервере не заданы ни админские, ни модераторские роли - значит пользователь И админ И модератор :)
-            admin_roles = self.GetRolesByGuildID(ctx.guild.id,'admin')
-            moderator_roles = self.GetRolesByGuildID(ctx.guild.id,'moderator')
-            if admin_roles == [] and moderator_roles == []:
-                IsAdminOrModerator = True
-                return(IsAdminOrModerator)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если админские роли заданы - проверяем, есть ли одна из этих ролей у пользователя
+            admin_roles = self.GetRolesByGuildID(ctx.guild.id,'admin')
+            moderator_roles = self.GetRolesByGuildID(ctx.guild.id,'moderator')
             for role in ctx.author.roles:
                 # Проверяем - есть ли у пользователя одна из админских ролей?
                 if admin_roles != []:
@@ -158,12 +155,14 @@ class admin(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
-            msgtext = f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
             msgtext += f'Проверь корректность указания названий ролей'
-            embed = discord.Embed(description = msgtext, color = color['red'])
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
-            self.mysql.disconnect()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
