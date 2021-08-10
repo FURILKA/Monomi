@@ -5,8 +5,8 @@ from mysqlconnector import mySQLConnector
 import discord
 import os
 # ==================================================================================================================================================================
-pycatalog = os.environ['PythonFilesCatalog']
-config = configurator(pycatalog+"Monomi\config\config.ini")
+#pycatalog = os.environ['PythonFilesCatalog']
+config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
 prefix = config.get(section='bot',setting='prefix')
 token  = config.get(section='bot',setting='token')
 owners = config.get(section='bot',setting='owners')
@@ -26,7 +26,7 @@ bot.mysql = mySQLConnector(
 # ==================================================================================================================================================================
 def load_cogs(reload=False):
     bot.LLC.addlog('Загружаем коги')
-    for filename in os.listdir('./monomi/cogs'):
+    for filename in os.listdir('./cogs'):
         if filename.endswith('.py'):
             fn = f'cogs.{filename[:-3]}'
             if reload==True:
