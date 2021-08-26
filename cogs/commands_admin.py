@@ -110,6 +110,7 @@ class admin(commands.Cog):
                 query =  "INSERT INTO roles_admin (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
                 # Обновляем информацию о ролях на данном сервере в боте
+                if guild.id not in self.bot.roles: self.bot.roles[guild.id]={}
                 self.bot.roles[guild.id]['admin'] = roles
                 msgtext = f'Админские роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
@@ -189,6 +190,7 @@ class admin(commands.Cog):
                 query =  "INSERT INTO roles_welcome (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
                 # Обновляем информацию о ролях на данном сервере в боте
+                if guild.id not in self.bot.roles: self.bot.roles[guild.id]={}
                 self.bot.roles[guild.id]['welcome'] = roles
                 msgtext = f'Приветственные роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
@@ -268,6 +270,7 @@ class admin(commands.Cog):
                 query = "INSERT INTO roles_moderator (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
                 # Обновляем информацию о ролях на данном сервере в боте
+                if guild.id not in self.bot.roles: self.bot.roles[guild.id]={}
                 self.bot.roles[guild.id]['welcome'] = roles
                 msgtext = f'Модераторские роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
