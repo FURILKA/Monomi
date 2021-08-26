@@ -4,6 +4,7 @@ from configurator import configurator
 from mysqlconnector import mySQLConnector
 import discord
 import os
+# !
 # ==================================================================================================================================================================
 #pycatalog = os.environ['PythonFilesCatalog']
 config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
