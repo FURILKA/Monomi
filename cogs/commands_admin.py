@@ -9,33 +9,16 @@ class admin(commands.Cog):
         self.LLC = bot.LLC
         self.mysql = bot.mysql
     # **************************************************************************************************************************************************************
-    # Загрузка информации об ролях из mySQL БД бота по 'guild_id', role_type = тип загружаемых ролей (в данном случае 'admin' или 'welcome')
-    def GetRolesByGuildID(self,guild_id,role_type):
-        # Загружаем из базы (таблица "roles_admin") список админских ролей по всем серверам
-        try:
-            self.LLC.addlog(f'Загружаем список ролей "{role_type}"')
-            self.mysql.connect()
-            result = self.mysql.execute(f"SELECT role_id FROM roles_{role_type} WHERE guild_id = '{str(guild_id)}'")
-            if result == [] or result == ():
-                self.LLC.addlog(f'Таблица "roles_{role_type}" пуста, роли не найдены')
-                roles = []
-            else:
-                roles = [row['role_id'] for row in result]
-            self.mysql.disconnect()
-            return(roles)
-        except Exception as error:
-            self.LLC.addlog(str(error),'error')
-    # **************************************************************************************************************************************************************
     # Проверка - является ли инициатор команды админом бота на сервере, где бы запущена команда
     async def isAdmin(self,ctx):
         try:
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Проверяем, является ли пользователь админом сервера. Если является - больше ничего делать не нужно, если не является - будем смотреть дальше
             isAdmin = ctx.author.guild_permissions.administrator
-            if isAdmin == True: return
+            if isAdmin == True: return(True)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если админские роли заданы - проверяем, есть ли одна из этих ролей у пользователя, если есть - значит он админ, если нет - значит НЕ админ
-            admin_roles = self.GetRolesByGuildID(ctx.guild.id,'admin')
+            admin_roles = self.bot.roles[ctx.guild.id]['admin'] if ctx.guild.id in self.bot.roles else []
             if admin_roles != [] and admin_roles != ():
                 for role in ctx.author.roles:
                     # Если найденная роль юзера является одной из ролью списка админов по данному серверу - значит инициатор команды админ
@@ -50,7 +33,7 @@ class admin(commands.Cog):
                 msgtext += 'Данная команда доступна только для админов бота\n'
                 msgtext += 'Админами бота являются пользователи с ролью:\n\n'
                 for role_id in admin_roles:
-                    role = ctx.guild.get_role(int(role_id))
+                    role = ctx.guild.get_role(role_id)
                     if role != None:
                         if len(admin_roles) > 1:
                             msgtext += f'{str(1+admin_roles.index(role_id))}) {role.mention}\n'
@@ -73,7 +56,7 @@ class admin(commands.Cog):
             member = ctx.author
             self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             if await self.isAdmin(ctx) == False: return
-            admin_roles = self.GetRolesByGuildID(guild.id,'admin')
+            admin_roles = self.bot.roles[guild.id]['admin'] if guild.id in self.bot.roles else []
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если в БД отсутствует информация об админских ролях на этом сервере (возможно это новый сервер?)
             if args == () and admin_roles == []:
@@ -88,12 +71,11 @@ class admin(commands.Cog):
             # В БД есть инфа + в команде не заданы аргументы: сообщаем список текущих ролей данного сервера
             if args == ():
                 msgtext = f'Cписок админских ролей **{guild.name}**:\n\n'
-                guild_admin_roles = admin_roles
-                for role_id in guild_admin_roles:
-                    role = ctx.guild.get_role(int(role_id))
+                for role_id in admin_roles:
+                    role = ctx.guild.get_role(role_id)
                     if role != None:
-                        if len(guild_admin_roles) > 1:
-                            msgtext += f'{str(1+guild_admin_roles.index(role_id))}) {role.mention}\n'
+                        if len(admin_roles) > 1:
+                            msgtext += f'{str(1+admin_roles.index(role_id))}) {role.mention}\n'
                         else:
                             msgtext += f'{role.mention}\n'
                 msgtext += f'\nЧто бы изменить роли введите команду в формате:\n**{self.bot.prefix}{command_name}** ***<одна, или несколько ролей>***\n'
@@ -104,6 +86,8 @@ class admin(commands.Cog):
             # В БД есть инфа + в команде заданы аргументы: изменяем админские роли на данном сервере
             if args != ():
                 insert_values = ''
+                roles = []
+                # Собираем список новых админских ролей + подготавливаем строку для sql-запроса на инсерт новых данных о ролях в таблицу ролей
                 for role_mention in args:
                     if len(role_mention) < 10 or role_mention[1] != '@':
                         msgtext = f'Роль "{role_mention}" указана в неправильном формате\nРоли указываются через @ (через "собаку")'
@@ -118,13 +102,15 @@ class admin(commands.Cog):
                         await ctx.send(embed=embed)
                         return
                     insert_values = insert_values + f",('{guild.id}','{guild.name}','{role.id}','{role.name}','{member.id}','{member.name}')"
-                # Удаляем из таблицы информацию о старых ролях и записываем новые
-                self.mysql.connect()
+                    roles.append(role_id)
+                # Удаляем из таблицы информацию о старых ролях
                 query = f"DELETE FROM roles_admin WHERE guild_id = '{guild.id}'"
                 self.mysql.execute(query)
+                # Записываем в таблицу информацию о новых ролях
                 query =  "INSERT INTO roles_admin (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
-                self.mysql.disconnect()
+                # Обновляем информацию о ролях на данном сервере в боте
+                self.bot.roles[guild.id]['admin'] = roles
                 msgtext = f'Админские роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
                 await ctx.send(embed=embed)
@@ -149,7 +135,7 @@ class admin(commands.Cog):
             member = ctx.author
             self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             if await self.isAdmin(ctx) == False: return
-            welcome_roles = self.GetRolesByGuildID(guild.id,'welcome')
+            welcome_roles = self.bot.roles[guild.id]['welcome'] if guild.id in self.bot.roles else []
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если в БД отсутствует информация об приветственных ролях на этом сервере (возможно это новый сервер?)
             if args == () and welcome_roles == []:
@@ -165,7 +151,7 @@ class admin(commands.Cog):
             if args == ():
                 msgtext = f'Cписок приветственных ролей **{guild.name}**:\n\n'
                 for role_id in welcome_roles:
-                    role = ctx.guild.get_role(int(role_id))
+                    role = ctx.guild.get_role(role_id)
                     if role != None:
                         if len(welcome_roles) > 1:
                             msgtext += f'{str(1+welcome_roles.index(role_id))}) {role.mention}\n'
@@ -179,6 +165,8 @@ class admin(commands.Cog):
             # в команде заданы аргументы: изменяем админские роли на данном сервере
             if args != ():
                 insert_values = ''
+                roles = []
+                # Собираем список новых ролей + подготавливаем строку для sql-запроса на инсерт новых данных о ролях в таблицу ролей
                 for role_mention in args:
                     if len(role_mention) < 10 or role_mention[1] != '@':
                         msgtext = f'Роль "{role_mention}" указана в неправильном формате\nРоли указываются через @ (через "собаку")'
@@ -193,13 +181,15 @@ class admin(commands.Cog):
                         await ctx.send(embed=embed)
                         return
                     insert_values = insert_values + f",('{guild.id}','{guild.name}','{role.id}','{role.name}','{member.id}','{member.name}')"
-                # Удаляем из таблицы информацию о старых ролях и записываем новые
-                self.mysql.connect()
+                    roles.append(role_id)
+                # Удаляем из таблицы информацию о старых ролях
                 query = f"DELETE FROM roles_welcome WHERE guild_id = '{guild.id}'"
                 self.mysql.execute(query)
+                # Записываем в таблицу информацию о новых ролях
                 query =  "INSERT INTO roles_welcome (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
-                self.mysql.disconnect()
+                # Обновляем информацию о ролях на данном сервере в боте
+                self.bot.roles[guild.id]['welcome'] = roles
                 msgtext = f'Приветственные роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
                 await ctx.send(embed=embed)
@@ -224,7 +214,7 @@ class admin(commands.Cog):
             member = ctx.author
             self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             if await self.isAdmin(ctx) == False: return
-            moderator_roles = self.GetRolesByGuildID(guild.id,'moderator')
+            moderator_roles = self.bot.roles[guild.id]['admin'] if guild.id in self.bot.roles else []
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если в БД отсутствует информация об админских ролях на этом сервере (возможно это новый сервер?)
             if args == () and moderator_roles == []:
@@ -240,7 +230,7 @@ class admin(commands.Cog):
             if args == ():
                 msgtext = f'Cписок модераторских ролей **{guild.name}**:\n\n'
                 for role_id in moderator_roles:
-                    role = ctx.guild.get_role(int(role_id))
+                    role = ctx.guild.get_role(role_id)
                     if role != None:
                         if len(moderator_roles) > 1:
                             msgtext += f'{str(1+moderator_roles.index(role_id))}) {role.mention}\n'
@@ -254,6 +244,8 @@ class admin(commands.Cog):
             # в команде заданы аргументы: изменяем админские роли на данном сервере
             if args != ():
                 insert_values = ''
+                roles = []
+                # Собираем список новых ролей + подготавливаем строку для sql-запроса на инсерт новых данных о ролях в таблицу ролей
                 for role_mention in args:
                     if len(role_mention) < 10 or role_mention[1] != '@':
                         msgtext = f'Роль "{role_mention}" указана в неправильном формате\nРоли указываются через @ (через "собаку")'
@@ -268,13 +260,15 @@ class admin(commands.Cog):
                         await ctx.send(embed=embed)
                         return
                     insert_values = insert_values + f",('{guild.id}','{guild.name}','{role.id}','{role.name}','{member.id}','{member.name}')"
-                # Удаляем из таблицы информацию о старых ролях и записываем новые
-                self.mysql.connect()
+                    roles.append(role_id)
+                 # Удаляем из таблицы информацию о старых ролях
                 query = f"DELETE FROM roles_moderator WHERE guild_id = '{guild.id}'"
                 self.mysql.execute(query)
+                # Записываем в таблицу информацию о новых ролях
                 query = "INSERT INTO roles_moderator (guild_id,guild_name,role_id,role_name,author_id,author_name) VALUES " + insert_values[1:]
                 self.mysql.execute(query)
-                self.mysql.disconnect()
+                # Обновляем информацию о ролях на данном сервере в боте
+                self.bot.roles[guild.id]['welcome'] = roles
                 msgtext = f'Модераторские роли **{guild.name}** успешно изменены!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
                 await ctx.send(embed=embed)

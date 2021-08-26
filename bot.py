@@ -31,19 +31,11 @@ def load_cogs(reload=False):
             fn = f'cogs.{filename[:-3]}'
             if reload==True:
                 bot.unload_extension(fn)
+            bot.LLC.addlog(f'Загружаем: "{fn}"')
             bot.load_extension(fn)
     bot.LLC.addlog('Коги загружены')
 # ==================================================================================================================================================================
-def get_emoji(emoji_name):
-    bot.mysql.connect()
-    result = bot.mysql.execute(f"SELECT emoji_url FROM emojis WHERE emoji_name = '{emoji_name}'")
-    emoji_url = ''
-    if result != [] and result != []:
-        emoji_url = result[0]['emoji_url']
-    bot.mysql.disconnect()
-    return(emoji_url)
-# ==================================================================================================================================================================
-bot.get_emoji = get_emoji
+#bot.get_emoji = get_emoji
 bot.LLC.addlog('Запускаем бота')
 load_cogs()
 bot.run(token)

@@ -20,10 +20,8 @@ class on_member(commands.Cog):
         await asyncio.sleep(3)
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # Получаем информацию о приветственном сообщение и дефолтных ролях для данного сервера
-        self.mysql.connect()
         welcome_text_result = self.mysql.execute(f"SELECT * FROM text_welcome WHERE guild_id = '{str(guild.id)}'")
         welcome_role_result = self.mysql.execute(f"SELECT * FROM roles_welcome WHERE guild_id = '{str(guild.id)}'")
-        self.mysql.disconnect()
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         # Если у сервера заданы приветственные роли - выдаём их
         if welcome_role_result != [] and welcome_role_result != ():
@@ -37,6 +35,7 @@ class on_member(commands.Cog):
                 else:
                     self.LLC.addlog(f'Роль "{role_name}" на сервере [{guild.name}] не найдена!','error')
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # Отправляем новому члену сообщества приветственное сообщение (если оно задано)
         if welcome_text_result != [] and welcome_text_result != ():
             welcome_text = welcome_text_result[0]['message']
             welcome_channel = int(welcome_text_result[0]['channel_id'])

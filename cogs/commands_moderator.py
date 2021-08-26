@@ -10,35 +10,17 @@ class admin(commands.Cog):
         self.LLC = bot.LLC
         self.mysql = bot.mysql
     # **************************************************************************************************************************************************************
-    # Загрузка информации об ролях из mySQL БД бота по 'guild_id', role_type = тип загружаемых ролей (в данном случае 'admin' или 'moderator')
-    def GetRolesByGuildID(self,guild_id,role_type):
-        # Загружаем из базы (таблица "roles_admin") список админских ролей по всем серверам
-        try:
-            self.LLC.addlog(f'Загружаем список ролей "{role_type}"')
-            self.mysql.connect()
-            result = self.mysql.execute(f"SELECT role_id FROM roles_{role_type} WHERE guild_id = '{str(guild_id)}'")
-            if result == [] or result == ():
-                self.LLC.addlog(f'Таблица "roles_{role_type}" пуста, роли не найдены')
-                roles = []
-            else:
-                roles = [row['role_id'] for row in result]
-            self.mysql.disconnect()
-            return(roles)
-        except Exception as error:
-            self.LLC.addlog(str(error),'error')
-    # **************************************************************************************************************************************************************
     # Проверка - является ли пользователем админом или модератором на своём сервере
     async def IsAdminOrModerator(self,ctx):
         try:
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Проверяем, является ли пользователь админом сервера. Если является - больше ничего делать не нужно, если не является - будем смотреть дальше
             IsAdminOrModerator = ctx.author.guild_permissions.administrator
-            if IsAdminOrModerator == True: return
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            if IsAdminOrModerator == True: return(True)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если админские роли заданы - проверяем, есть ли одна из этих ролей у пользователя
-            admin_roles = self.GetRolesByGuildID(ctx.guild.id,'admin')
-            moderator_roles = self.GetRolesByGuildID(ctx.guild.id,'moderator')
+            admin_roles = self.bot.roles[ctx.guild.id]['admin'] if ctx.guild.id in self.bot.roles else []
+            moderator_roles = self.bot.roles[ctx.guild.id]['moderator'] if ctx.guild.id in self.bot.roles else []
             for role in ctx.author.roles:
                 # Проверяем - есть ли у пользователя одна из админских ролей?
                 if admin_roles != []:
@@ -79,7 +61,6 @@ class admin(commands.Cog):
             member = ctx.author
             self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             if await self.IsAdminOrModerator(ctx) == False: return
-            self.mysql.connect()
             result = self.mysql.execute(f"SELECT message,channel_id FROM text_welcome WHERE guild_id='{guild.id}'")
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если в команду передан канал - проверяем, что канал 1) указан в нормальном формате (через #) 2) канал существует на сервере
@@ -93,7 +74,6 @@ class admin(commands.Cog):
                     embed=discord.Embed(color=color['red'])
                     embed.add_field(name=f':x: Ошибка', value=msgtext, inline=False)
                     await ctx.send(embed=embed)
-                    self.mysql.disconnect()
                     return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # В команде указан только 1 параметр из 2 (должно быть либо 0 либо 2)
@@ -106,7 +86,6 @@ class admin(commands.Cog):
                 embed=discord.Embed(color=color['red'])
                 embed.add_field(name=f':x: Ошибка', value=msgtext, inline=False)
                 await ctx.send(embed=embed)
-                self.mysql.disconnect()
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Параметры не указаны и в базе пусто, приветственное сообщение пока не задано
@@ -119,7 +98,6 @@ class admin(commands.Cog):
                 embed=discord.Embed(color=color['blue'])
                 embed.add_field(name=f':page_facing_up:  Информация', value=msgtext, inline=False)
                 await ctx.send(embed=embed)
-                self.mysql.disconnect()
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Параметры не указаны, а в базе есть инфа о приветственном сообщении - показываем инфу о нём
@@ -138,7 +116,6 @@ class admin(commands.Cog):
                 msgtext += f'Сообщение может иметь эмодзи, ссылки/пинги'
                 embed.add_field(name=':speech_left:  Справка',value=msgtext, inline=False)
                 await ctx.send(embed=embed)
-                self.mysql.disconnect()
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Оба параметра заданы - меняем информацию о приветственном сообщении в базе данных
@@ -151,7 +128,6 @@ class admin(commands.Cog):
                 msgtext = f'Приветственное сообщение успешно изменено!'
                 embed = discord.Embed(description = msgtext, color = color['green'])
                 await ctx.send(embed=embed)
-                self.mysql.disconnect()
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:

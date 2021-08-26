@@ -20,7 +20,6 @@ class help(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Это простой (общий) вызов справки, без указания конкретной команды
             if command_for_more_help == None:
-                self.mysql.connect()
                 commands = {'user':[],'moderator':[],'admin':[],'owner':[]}
                 embed=discord.Embed(title="Справка", description="Список доступных команд", color=color['green'])
                 commands_result = self.mysql.execute('SELECT * FROM commands')
@@ -39,6 +38,9 @@ class help(commands.Cog):
                     elif command_type == 'user':
                         emoji = ':white_circle:'
                         type_name = 'Команды для всех'
+                    elif command_type == 'reactions':
+                        emoji = ':blue_circle:'
+                        type_name = 'Реакции'
                     elif command_type == 'owner':
                         emoji = ':orange_circle:'
                         type_name = 'Команды владельца'
@@ -52,7 +54,6 @@ class help(commands.Cog):
                 embed.set_footer(text=f'Для подробной справки введи {self.bot.prefix}help <имя_команды>')
                 embed.set_thumbnail(url="https://emoji.discord.st/emojis/65033a38-b3bd-4aa5-8783-63fcfc07171d.gif")
                 await ctx.send(embed=embed)
-                self.mysql.disconnect()
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Это вызов справки по конкретной команде

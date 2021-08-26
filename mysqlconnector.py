@@ -18,46 +18,22 @@ class mySQLConnector(object):
         self.base = base
         self.LLC  = LocalLogCollector
     # **************************************************************************************************************************************************************
-    # Подключение к базе
-    def connect(self):
-        try:    
-            self.sqlCon = pymysql.connect(
+    # Выполнение sql-запроса
+    def execute(self,request=''):
+        try:
+            sqlCon = pymysql.connect(
                 host=self.host,
                 user=self.user,
                 password=self.pwrd,
                 db=self.base,
                 cursorclass=pymysql.cursors.DictCursor
                 )
-        except Exception as e:
-            self.LLC.addlog('error due connection to SQL-server','error')
-            self.LLC.addlog(str(e),'error')
-    # **************************************************************************************************************************************************************
-    # Проверка состояния подключения - вернет True если всё хорошо, вернет False если есть проблемы с выполнением запросов
-    def isConnected(self):
-        try:
-            sqlCur = self.sqlCon.cursor()
-            sqlCur.execute('SELECT 1')
-            return(True)
-        except Exception as e:
-            self.LLC.addlog('MariaDB.isConnect = False','error')
-            self.LLC.addlog(str(e),'error')
-            return(False)
-    # **************************************************************************************************************************************************************
-    # Отключение от сервера БД (закрытие сессии)
-    def disconnect(self):
-        try:
-            self.sqlCon.close()
-        except Exception as e:
-            self.LLC.addlog('error due closing SQL-connection','error')
-            self.LLC.addlog(str(e),'error')
-    # **************************************************************************************************************************************************************
-    # Выполнение sql-запроса
-    def execute(self,request=''):
-        try:
-            sqlCur = self.sqlCon.cursor()
+            sqlCur = sqlCon.cursor()
             sqlCur.execute(request)
-            self.sqlCon.commit()
-            return(sqlCur.fetchall())
+            result = sqlCur.fetchall()
+            sqlCon.commit()
+            sqlCon.close()
+            return(result)
         except Exception as e:
             self.LLC.addlog('error due executing SQL-request: ' + request,'error')
             self.LLC.addlog(str(e),'error')

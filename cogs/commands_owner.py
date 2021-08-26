@@ -38,7 +38,7 @@ class owner(commands.Cog):
             if await self.isOwner(ctx) == False: return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             self.LLC.addlog('Перезагружаем коги')
-            for filename in os.listdir('./monomi/cogs'):
+            for filename in os.listdir(os.path.dirname(os.path.realpath(__file__))):
                 if filename.endswith('.py'):
                     fn = f'cogs.{filename[:-3]}'
                     self.LLC.addlog(f'Загружаем: "{fn}"')

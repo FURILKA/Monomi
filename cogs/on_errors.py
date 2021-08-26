@@ -13,10 +13,13 @@ class errors(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self,ctx, err):
         try:
+            guild = ctx.guild
+            member = ctx.author
             #************************************************************************************************************************************************
             if type(err) == discord.ext.commands.errors.CommandNotFound:
                 command_name = str(ctx.message.content).split(' ')[0].lower()
-                msg_text = f"Ошибка! Команда __**{command_name}**__ не существует\nМожет быть в названии команды опечатка?"
+                msg_text = f"Команда __**{command_name}**__ не существует\nМожет быть в названии команды опечатка?"
+                self.LLC.addlog(f'Введена некорректная команда "{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             #************************************************************************************************************************************************
             elif type(err) == discord.ext.commands.errors.BotMissingPermissions:
                 msg_text = f"У бота отсутствуют права: {' '.join(err.missing_perms)}\nВыдайте их ему для полного функционирования бота"
@@ -36,7 +39,9 @@ class errors(commands.Cog):
             else:
                 msg_text=f"Произошла неизвестная ошибка:\n[*{err}*]\nПожалуйста, свяжитесь с разработчиками для исправления этой ошибки"
             #************************************************************************************************************************************************
-            await ctx.send(embed=discord.Embed(description=msg_text,color=color['red']))
+            embed=discord.Embed(color=color['red'])
+            embed.add_field(name=f':x: Ошибка', value=msg_text, inline=False)
+            await ctx.send(embed=embed)
         except Exception as error:
             self.LLC.addlog(str(error),'error')
 # ==================================================================================================================================================================
