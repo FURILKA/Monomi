@@ -246,7 +246,7 @@ class admin(commands.Cog):
                 INSERT INTO twitch_streamers
                     (guild_id,guild_name,channel_id,channel_name,twitch_user_id,twitch_user_name,twitch_user_status,twitch_user_date)
                 VALUES
-                    ({guild.id},'{guild.name}',{channel.id},'{channel.name}','{twitch_user_id}',{twich_user_name},'offline',NOW())
+                    ({guild.id},'{guild.name}',{channel.id},'{channel.name}','{twitch_user_id}','{twich_user_name}','offline',NOW())
             """
             self.bot.mysql.execute(query)
             self.bot.LLC.addlog(f'Пользователь twitch "{twich_user_name}" добавлен для мониторинга на сервере "{guild.name}" в канале "{channel.name}"')
