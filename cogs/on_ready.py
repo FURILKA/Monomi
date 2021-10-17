@@ -50,19 +50,32 @@ class owner(commands.Cog):
                 # собираем словарь с ключем = именам всех типов реакций и значений из пустых списков
                 for reaction_type in reactions_types:
                     dict_empty_reactions[reaction_type]=[]
-                # перебираем все типы реакций
+                # Собираем пустой словарь реакций, заполняем его id серверов и типами реакций
+                for table_reaction_type in reactions_types:
+                    result_guilds = self.mysql.execute(f'SELECT rm.guild_id FROM reactions_{table_reaction_type} rm GROUP BY rm.guild_id')
+                    for row in result_guilds:
+                        guild_id = int(row['guild_id'])
+                        if guild_id not in reactions:
+                            reactions[guild_id] = {}
+                            for reaction_type in reactions_types:
+                                reactions[guild_id][reaction_type]=[]
+                # заполняем итоговый словарь реакций
+                result_reactions = {}
                 for reaction_type in reactions_types:
                     # делаем запрос в БД и получаем все реакции данного типа по всем серверам
-                    result_reactions = self.mysql.execute('SELECT * FROM reactions_' + reaction_type)
+                    result_reactions[reaction_type] = self.mysql.execute('SELECT * FROM reactions_' + reaction_type)
                     # перебираем все найденные реакции
-                    for reaction in result_reactions:
-                        guild_id = int(reaction['guild_id'])
-                        rid = reaction['reaction_id']
-                        trigger = reaction['react_trigger']
-                        value = reaction['react_value']
-                        if guild_id not in reactions: reactions[guild_id] = dict_empty_reactions
-                        reactions[guild_id][reaction_type].append({'id':rid,'trigger': trigger,'value': value})
-                self.bot.reactions = reactions
+                    if result_reactions[reaction_type] != [] and result_reactions[reaction_type] != ():
+                        r = {}
+                        for reaction in result_reactions[reaction_type]:
+                            guild_id = int(reaction['guild_id'])
+                            rid = reaction['reaction_id']
+                            trigger = reaction['react_trigger']
+                            value = reaction['react_value']
+                            reactions[guild_id][reaction_type].append({'id':rid,'trigger': trigger,'value': value})
+                            result_dict = reactions.copy()
+                # словарь реакций готов, записываем его в бота
+                self.bot.reactions = result_dict
             except Exception as error:
                 self.LLC.addlog(str(error),'error')
         # **********************************************************************************************************************************************************
@@ -87,7 +100,6 @@ class owner(commands.Cog):
                 type_type = row['type']
                 type_name = row['name']
                 self.bot.commands_type[type_type]=type_name
-            
             self.bot.commands_type
             self.bot.commands_list  = self.bot.mysql.execute(f"SELECT * FROM commands")
         # **********************************************************************************************************************************************************

@@ -85,6 +85,8 @@ class reactions(commands.Cog):
                 rid = 1
                 values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}',{str(member.id)},'{member.name}'"
                 self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
+                self.bot.reactions[guild.id] = {}
+                self.bot.reactions[guild.id]['message'] = []
                 self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message})
                 embed=discord.Embed(description='**<:success:878625363540983848> Реакция добавлена!**',color=color['green'])
                 embed.add_field(name=f'ID', value=f'#{str(rid)}', inline=False)
@@ -113,7 +115,7 @@ class reactions(commands.Cog):
                     return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Реакции с таким триггером на сервере нет. Это новая реакция. Значит добавляем её к списку реакций и в таблицу реакция + сообщение пользователю
-            rid = self.mysql.execute(f"SELECT MAX(rm.reaction_id)+1 AS 'new_id' FROM reactions_message rm WHERE rm.guild_id = {str(guild.id)}")[0]['new_id']
+            rid = self.mysql.execute(f"SELECT MAX(rm.reaction_id)+1 AS 'new_id' FROM reactions_message rm WHERE rm.guild_id = '{str(guild.id)}'")[0]['new_id']
             values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}',{str(member.id)},'{member.name}'"
             self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
             self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message})

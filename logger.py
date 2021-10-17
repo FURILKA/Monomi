@@ -1,17 +1,20 @@
 from datetime import datetime
+from configurator import configurator
+import pymysql
 import inspect
 import random
+import os
 # ==================================================================================================================================================================
 # Класс "LocalLogCollector" (сокращенно LLC)
-# При создании генерирует рандомный ID сиссии, далее собирает локальную коллекцию логов. Каждый элемент которой представляет собой данные об:
+# При создании генерирует рандомный ID сиссии, далее собирает локальную коллекцию логов. Каждый элемент коллекции содержит:
 # 1) Время события
-# 2) Рандомный ID сессии в виде ХХХХ-ХХХХ-ХХХХ-ХХХХ (где Х рандомная цифра 0-9)
-# 3) Тип события (по умолчанию 'info)
-# 4) Сообщение
+# 2) Рандомный ID сессии в виде ХХХХ-ХХХХ-ХХХХ-ХХХХ (где Х рандомная цифра 0-9), генерируется при запуске бота и действует всё время до перезапуска
+# 3) Тип события. По умолчанию 'info', может быть 'error', 'warning' и т.д.
+# 4) Тест сообщения/лога
 # 5) Название функции-отправителя лога
 # 6) Название модуля-отправителя лога
 # После сбора коллекции её необходимо отправить на сервер. Если этого не сделать - логи будут потеряны
-# Автоматически отправляет логи на сервер в том случае, если в коллекции собирается 1000+ событий
+# Автоматически отправляет логи на сервер в том случае, если в коллекции собирается 100+ событий ИЛИ если type == 'error'
 # ==================================================================================================================================================================
 class LocalLogCollector(object):
     # **************************************************************************************************************************************************************
@@ -43,13 +46,36 @@ class LocalLogCollector(object):
             if type(val) != str: val = str(val)
             if self.SessionID != 0: val = '[ID:' + str(self.SessionID) + '] ' + val
             print('[' + str(datetime.now())[0:19].replace('-','.') + '] ' + val + ' (function_name="' + function_name + '",lib_name="' + lib_name + '")')
+            if msg_type == 'error' or len(self.logs_collection)>100:
+                self.export()
         except Exception as ex:
             print(str(ex))
     # **************************************************************************************************************************************************************
     def export(self):
         """Экспорт локальных логов на сервер логирования"""
         try:
-            pass
+            if len(self.logs_collection)>0:
+                rows_to_delete = []
+                values = ''
+                for row in self.logs_collection:
+                    rows_to_delete.append(row)
+                    values += "('"+row['id']+"','"+str(row['date'])+"','"+row['type']+"','"+row['lib_name']+"','"+row['function_name']+"','"+row['message']+"'),"
+                values = values[0:-1]
+                config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
+                sqlCon = pymysql.connect(
+                    host = config.get(section='mySQL',setting='host'),
+                    user = config.get(section='mySQL',setting='user'),
+                    password = config.get(section='mySQL',setting='pass'),
+                    db = config.get(section='mySQL',setting='base'),
+                    cursorclass = pymysql.cursors.DictCursor
+                    )
+                sqlCur = sqlCon.cursor()
+                query = 'INSERT INTO bot_logs(session_id,date,type,library,function,message) VALUES ' + values
+                sqlCur.execute(query)
+                sqlCon.commit()
+                sqlCon.close()
+                for row in rows_to_delete:
+                    self.logs_collection.remove(row)
         except Exception as ex:
             print(str(ex))
 # ==================================================================================================================================================================

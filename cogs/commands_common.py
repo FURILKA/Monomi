@@ -36,7 +36,7 @@ class common(commands.Cog):
                 roll_text = d[r1] + ' + ' + d[r2] + ' = ' + str(summ)
                 embed=discord.Embed(title='Бросаем 2d6',color=color['green'])
                 embed.add_field(name=f'Результат:', value=f'{roll_text}', inline=False)
-                await ctx.send(embed=embed)
+                await ctx.send(embed=embed,content=f'---> {ctx.author.display_name}')
                 return
             # -----------------------------------------------------------------------------------------------------------------------------------------------------
             # Если задано определенное кол-во костей или ограничения по граням - проверяем, что всё задано корректно
@@ -75,7 +75,7 @@ class common(commands.Cog):
                     roll_text = roll_text[0:-2] + ' = ' + str(roll_summ)
                     embed=discord.Embed(title=f'Бросаем {str(dices)}d{str(faces)}',color=color['green'])
                     embed.add_field(name=f'Результат:', value=f'{roll_text}', inline=False)
-                    await ctx.send(embed=embed)
+                    await ctx.send(embed=embed,content=f'---> {ctx.author.display_name}')
             # -----------------------------------------------------------------------------------------------------------------------------------------------------      
         except Exception as error:
             msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'

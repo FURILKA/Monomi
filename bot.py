@@ -3,17 +3,31 @@ from discord.ext import commands
 from configurator import configurator
 from mysqlconnector import mySQLConnector
 import discord
+import requests
 import os
-# !
 # ==================================================================================================================================================================
 #pycatalog = os.environ['PythonFilesCatalog']
 config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
 prefix = config.get(section='bot',setting='prefix')
 token  = config.get(section='bot',setting='token')
 owners = config.get(section='bot',setting='owners')
+twitch_id = config.get(section='twitch',setting='bot_client_id')
+twitch_secret = config.get(section='twitch',setting='bot_client_secret')
 intents = discord.Intents.default()
 intents.members = True
+url = 'https://id.twitch.tv/oauth2/token'
+params = {
+    'client_id': twitch_id,
+    'client_secret': twitch_secret,
+    'grant_type':'client_credentials'}
+req = requests.post(url=url,params=params)
+twitch_token = req.json()['access_token']
 bot = commands.Bot(command_prefix=prefix,intents=intents)
+bot.twitch_creds = {
+    'client': twitch_id,
+    'secret': twitch_secret,
+    'token' : twitch_token
+    }
 bot.remove_command('help')
 bot.prefix = prefix
 bot.LLC = LocalLogCollector()
