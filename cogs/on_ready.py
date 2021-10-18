@@ -94,14 +94,11 @@ class owner(commands.Cog):
         # **********************************************************************************************************************************************************
         # Загрузка команд
         def load_commands():
-            result  = self.bot.mysql.execute(f"SELECT * FROM commands_types")
-            self.bot.commands_type = {}
-            for row in result:
-                type_type = row['type']
-                type_name = row['name']
-                self.bot.commands_type[type_type]=type_name
-            self.bot.commands_type
-            self.bot.commands_list  = self.bot.mysql.execute(f"SELECT * FROM commands")
+            try:
+                self.bot.commands_type = self.bot.mysql.execute(f"SELECT * FROM commands_types")
+                self.bot.commands_list = self.bot.mysql.execute(f"SELECT * FROM commands")
+            except Exception as error:
+                self.LLC.addlog(str(error),'error')
         # **********************************************************************************************************************************************************
         self.bot.LLC.addlog('Загрузка команд')
         load_commands()

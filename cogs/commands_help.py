@@ -20,45 +20,59 @@ class help(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Это простой (общий) вызов справки, без указания конкретной команды
             if command_for_more_help == None:
-                commands = {'user':[],'moderator':[],'admin':[],'owner':[]}
-                embed=discord.Embed(title="Справка", description="Список доступных команд", color=color['green'])
-                commands_result = self.mysql.execute('SELECT * FROM commands')
-                for row in commands_result:
-                    command_type = row['command_type']
-                    if command_type not in commands:
-                        commands[command_type]=[]
-                    commands[command_type].append(row['command_name'])
-                for command_type in commands:
-                    if command_type == 'admin':
-                        emoji = ':red_circle:'
-                        type_name = 'Команды админа'
-                    elif command_type == 'moderator':
-                        emoji = ':green_circle:'
-                        type_name = 'Команды модератора'
-                    elif command_type == 'user':
-                        emoji = ':white_circle:'
-                        type_name = 'Команды для всех'
-                    elif command_type == 'reactions':
-                        emoji = ':blue_circle:'
-                        type_name = 'Реакции'
-                    elif command_type == 'owner':
-                        emoji = ':orange_circle:'
-                        type_name = 'Команды владельца'
-                    i = 1
+                embed=discord.Embed(title="Справка", description="Список доступных команд:", color=color['green'])
+                commands_by_category = {}
+                # Собираем словарь "commands_by_category", где ключем будет поле "name" таблицы "commands_types", а значением имя команды из таблицы "commands"
+                for command_row in self.bot.commands_list:
+                    command_name = command_row['command_name']
+                    command_type = command_row['command_type']
+                    command_category_name = ''
+                    for command_type_row in self.bot.commands_type:
+                        type_name = command_type_row['type']
+                        if command_type == type_name:
+                            command_category_name = command_type_row['name']
+                            break
+                    if command_category_name == '':
+                        command_category_name == ':interrobang: Без категории'
+                    if command_category_name not in commands_by_category:
+                        commands_by_category[command_category_name] = []
+                    commands_by_category[command_category_name].append(command_name)
+                # Словарь собран, формируем сообщение
+                for command_category in commands_by_category:
+                    commands_list = commands_by_category[command_category]
                     field_value = ''
-                    for command_name in commands[command_type]:
-                        field_value += str(i)+ ') __[' + command_name + '](https://countrycode.org/)__' + '\n'
-                        i+=1
-                    field_value = field_value[0:-1]
-                    embed.add_field(name=f'{emoji} {type_name}', value=field_value, inline=False)
+                    for command_name in commands_list:
+                        field_value += command_name + '\n'
+                    embed.add_field(name=f'{command_category}',value=field_value,inline=True)
+                # Текст сообщения сформирован, добавляем подпись, гифку и отправляем
                 embed.set_footer(text=f'Для подробной справки введи {self.bot.prefix}help <имя_команды>')
-                embed.set_thumbnail(url="https://emoji.discord.st/emojis/65033a38-b3bd-4aa5-8783-63fcfc07171d.gif")
+                embed.set_thumbnail(url=ctx.guild.icon_url)
                 await ctx.send(embed=embed)
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            # Это вызов справки по конкретной команде
+            # Это вызов справки по конкретной команде, ищем команду в списке команд, выводим по ней подробную справку, выходим из функции
             if command_for_more_help != None:
-                return
+                self.bot.LLC.addlog(f'Запрошена дополнительная справка по команде "{command_for_more_help}"')
+                command_for_more_help = command_for_more_help.lower()
+                for command_row in self.bot.commands_list:
+                    command_name = command_row['command_name']
+                    if command_name == command_for_more_help:
+                        command_help = '\n'+command_row['command_help']
+                        command_help = command_help.replace('<prefix>',self.bot.prefix)
+                        embed=discord.Embed(color=color['green'])
+                        embed.add_field(name=f':page_facing_up: Информация по команде "**{command_name}**"',value=command_help,inline=True)
+                        embed.set_footer(text=f'Для получения справки введи {self.bot.prefix}help')
+                        await ctx.send(embed=embed)
+                        return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если дошли сюда, значит была запрошена доп. справка по команде, но в списке команд указанной команды нет, сообщим об ошибке
+            self.bot.LLC.addlog(f'Команда "**{command_for_more_help}**" не найдена!')
+            msgtext  = f'Команда "**{command_for_more_help}**" не найдена!`\n'
+            msgtext += f'Проверьте корректность указания команды'
+            embed=discord.Embed(color=color['red'])
+            embed.add_field(name=f':x: Ошибка', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             msgtext = f'Что-то пошло не так, я не могу выполнить команду\n'
@@ -66,7 +80,6 @@ class help(commands.Cog):
             embed = discord.Embed(description = msgtext, color = color['red'])
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
-            self.mysql.disconnect()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
