@@ -109,6 +109,7 @@ class owner(commands.Cog):
         self.bot.LLC.addlog('Загрузка эмодзи')
         load_emoji()
         self.bot.LLC.addlog('Бот запущен и готов к работе')
+        self.bot.IsOnlineNow = True
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(owner(bot))

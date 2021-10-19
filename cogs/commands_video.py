@@ -187,11 +187,14 @@ class video(commands.Cog):
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
     @commands.command()
-    async def youtubecheckadd(self,ctx,channel_for_check = None,youtube_channel_id = None):
+    async def youtubecheckadd(self,ctx,channel_for_check = None,check_delay = None,youtube_channel_id = None):
         try:
             command_name = 'youtubecheckadd'
             msginfo  = f'\nЧто бы следить за каналом Youtube введите команду в формате:\n'
-            msginfo += f'**{self.bot.prefix}{command_name}** ***<#канал> <ID_канала>***\n'
+            msginfo += f'**{self.bot.prefix}{command_name}** ***<#канал> <периодичность> <ID_канала>***\n'
+            msginfo += f'**<#канал>**: ссылка (через #) на discord-канал для отслеживания\n'
+            msginfo += f'**<периодичность>**: периодичность (в часах) проверки новых видео, минимум: 1\n'
+            msginfo += f'**<ID_канала>**: строка с ID канала Youtube\n'
             msginfo += f'ID канала можно получить из ссылки на канал Youtube:\n'
             msginfo += f'Пример: youtube.com/channel/**UCuP9elPARI_aLK4TOQrnfYQ**\n'
             msginfo += f'Канал указывается как ссылка на канал через # (через решетку)\n'
@@ -202,11 +205,24 @@ class video(commands.Cog):
             if await self.IsAdminOrModerator(ctx) == False: return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если на задан ID канала Youtube или ссылка на канал для отслеживания - сообщаем об ошибке и выходим
-            if channel_for_check == None or youtube_channel_id == None:
+            if channel_for_check == None or check_delay == None or youtube_channel_id == None:
                 msgtext = ''
                 self.bot.LLC.addlog('ID канала Youbute или ссылка на канал отслеживания не заданы')
+                if check_delay == None: msgtext += f'Период проверки не указан!'
                 if youtube_channel_id == None: msgtext += f'ID канала Youtube не указано!\n'
                 if channel_for_check == None: msgtext += f'Ссылка на канал для оповещений о новых видео не указана!\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+msginfo, inline=False)
+                await ctx.send(embed=embed)
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем, что периодичность проверки задана корректно
+            if check_delay.isdigit() == False or int(check_delay)<1 or int(check_delay)>168:
+                msgtext = ''
+                self.bot.LLC.addlog(f'Период проверки указан некоректно: check_delay = "{check_delay}"')
+                if check_delay.isdigit() == False:  msgtext = f'Период проверки указан некоректно!\n'
+                if int(check_delay)<1:   msgtext = f'Период проверки не может быть меньше одного часа!\n'
+                if int(check_delay)>168: msgtext = f'Период проверки не может быть реже 1 раза в неделю!\n'
                 embed=discord.Embed(color=color['red'])
                 embed.add_field(name=f':x: Ошибка', value=msgtext+msginfo, inline=False)
                 await ctx.send(embed=embed)
@@ -264,6 +280,7 @@ class video(commands.Cog):
                 INSERT INTO 
                     youtube_videos
                         (
+                            check_delay,
                             guild_id,
                             guild_name,
                             channel_id,
@@ -277,6 +294,7 @@ class video(commands.Cog):
                         )
                 VALUES 
                         (
+                            {int(check_delay)},
                             {guild.id},
                             '{guild.name}',
                             {channel.id},

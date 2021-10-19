@@ -6,7 +6,6 @@ import discord
 import requests
 import os
 # ==================================================================================================================================================================
-#pycatalog = os.environ['PythonFilesCatalog']
 config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
 prefix = config.get(section='bot',setting='prefix')
 token  = config.get(section='bot',setting='token')
@@ -14,7 +13,6 @@ owners = config.get(section='bot',setting='owners')
 twitch_id = config.get(section='twitch',setting='bot_client_id')
 twitch_secret = config.get(section='twitch',setting='bot_client_secret')
 youtube_api_key = config.get(section='youtube',setting='api_key')
-
 intents = discord.Intents.default()
 intents.members = True
 url = 'https://id.twitch.tv/oauth2/token'
@@ -42,9 +40,25 @@ bot.mysql = mySQLConnector(
     base=config.get(section='mySQL',setting='base'),
     LocalLogCollector = bot.LLC)
 # ==================================================================================================================================================================
+# Список когов бота в порядке, в котором они должны быть загружены при запуске бота
+cogs_list = [
+    'commands_admin.py',
+    'commands_common.py',
+    'commands_help.py',
+    'commands_moderator.py',
+    'commands_owner.py',
+    'commands_reactions.py',
+    'commands_video.py',
+    'on_errors.py',
+    'on_member.py',
+    'on_message.py',
+    'on_ready.py',
+    'loop_tasks.py'
+]
+# Функция загрузки когов
 def load_cogs(reload=False):
     bot.LLC.addlog('Загружаем коги')
-    for filename in os.listdir(os.path.dirname(os.path.realpath(__file__))+'/cogs'):
+    for filename in cogs_list:
         if filename.endswith('.py'):
             fn = f'cogs.{filename[:-3]}'
             if reload==True:
@@ -56,4 +70,5 @@ def load_cogs(reload=False):
 #bot.get_emoji = get_emoji
 bot.LLC.addlog('Запускаем бота')
 load_cogs()
+bot.IsOnlineNow = False
 bot.run(token)

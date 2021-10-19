@@ -7,6 +7,7 @@ from googleapiclient.discovery import build
 import requests
 import discord
 import datetime
+import asyncio
 # ==================================================================================================================================================================
 class loop_tasks(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -21,6 +22,7 @@ class loop_tasks(commands.Cog):
     @tasks.loop(seconds=60)
     async def twich_check_streamers_online(self):
         try:
+            if self.bot.IsOnlineNow == False: return
             result = self.bot.mysql.execute('SELECT * FROM twitch_streamers')
             if result == [] or result == () : return
             for row in result:
@@ -97,18 +99,42 @@ class loop_tasks(commands.Cog):
     @tasks.loop(seconds=10)
     async def youtube_check_new_videos(self):
         try:
-            result = self.bot.mysql.execute("SELECT * FROM youtube_videos")
+            if self.bot.IsOnlineNow == False: return
+            # Получаем список записей, по которым истек срок (в часах) с момента последней проверки свежих видео
+            # Для этого к полю "check_delay" таблицы "youtube_videos" прибавляем кол-во часов из поля "check_delay"
+            # Если текущая дата/время больше, чем получившийся результат - значит период проверки прошел и нужно проверять повторно
+            query = """
+                SELECT 
+                    id,
+                    check_delay,
+                    youtube_channel_name,
+                    youtube_playlist_id,
+                    youtube_last_video_date,
+                    channel_id 
+                FROM 
+                    youtube_videos
+                WHERE 
+                    NOW() > DATE_ADD(check_date, INTERVAL check_delay HOUR)
+            """
+            result = self.bot.mysql.execute(query)
             if result == [] or result == (): return
+            # У нас есть по меньшей мери 1 запись, по которой нужно проверить наличие свежих видео. Сделаем это.
+            self.bot.LLC.addlog('Поиск новых видео на Youtube','youtube')
             youtube_api = build('youtube', 'v3', developerKey=self.bot.youtube_api_key)
             for row in result:
                 row_id = row['id']
+                check_delay = row['check_delay']
+                channel_id = row['channel_id']
                 youtube_channel_name = row['youtube_channel_name']
                 youtube_playlist_id = row['youtube_playlist_id']
                 youtube_last_video_date = row['youtube_last_video_date']
                 response_videos = youtube_api.playlistItems().list(playlistId=youtube_playlist_id, part='snippet,contentDetails,status',maxResults=2).execute()
-                channel = self.bot.get_channel(row['channel_id'])
+                channel = self.bot.get_channel(channel_id)
                 most_video_date = ''
-                if channel == None: continue
+                self.bot.LLC.addlog(f'Истек срок проверки = {check_delay}ч канала "{youtube_channel_name}", ищем новые видео','youtube')
+                if channel == None:
+                    self.bot.LLC.addlog('Не удалось получить канал дискорд: continue == none','error')
+                    continue
                 for video in response_videos['items']:
                     video_published = datetime.datetime.strptime(video['snippet']['publishedAt'],'%Y-%m-%dT%H:%M:%SZ')
                     video_title = video['snippet']['title']
@@ -119,7 +145,28 @@ class loop_tasks(commands.Cog):
                         video_url = 'https://www.youtube.com/watch?v='+video['contentDetails']['videoId']
                         msgtext = f'@here На канале **{youtube_channel_name}** новое видео\n**{video_title}**\n{video_url}'
                         await channel.send(content=msgtext)
-                if most_video_date != '' : self.bot.mysql.execute(f"UPDATE youtube_videos SET youtube_last_video_date = '{most_video_date}' WHERE id = {row_id}")
+                if most_video_date != '' : 
+                    query = f"""
+                        UPDATE 
+                            youtube_videos 
+                        SET 
+                            youtube_last_video_date = '{most_video_date}',
+                            check_date = NOW()
+                        WHERE
+                            id = {row_id}
+                    """
+                    self.bot.mysql.execute(query)
+                else:
+                    query = f"""
+                        UPDATE 
+                            youtube_videos 
+                        SET 
+                            check_date = NOW()
+                        WHERE
+                            id = {row_id}
+                    """
+                    self.bot.mysql.execute(query)
+                    self.bot.LLC.addlog(f'На канале "{youtube_channel_name}" новые видео отсутствуют','youtube')
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
