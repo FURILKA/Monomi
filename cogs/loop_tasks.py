@@ -3,8 +3,10 @@ from discord.ext import commands
 from discord.ext import tasks
 from twitchAPI.twitch import Twitch
 from colors import color
+from googleapiclient.discovery import build
 import requests
 import discord
+import datetime
 # ==================================================================================================================================================================
 class loop_tasks(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -13,9 +15,10 @@ class loop_tasks(commands.Cog):
         self.LLC = bot.LLC
         self.mysql = bot.mysql
         self.twich_check_streamers_online.start()
+        self.youtube_check_new_videos.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
-    @tasks.loop(seconds=3)
+    @tasks.loop(seconds=60)
     async def twich_check_streamers_online(self):
         try:
             result = self.bot.mysql.execute('SELECT * FROM twitch_streamers')
@@ -88,6 +91,35 @@ class loop_tasks(commands.Cog):
                     await channel.send(embed=embed,content=msgtext)
                     continue
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    @tasks.loop(seconds=10)
+    async def youtube_check_new_videos(self):
+        try:
+            result = self.bot.mysql.execute("SELECT * FROM youtube_videos")
+            if result == [] or result == (): return
+            youtube_api = build('youtube', 'v3', developerKey=self.bot.youtube_api_key)
+            for row in result:
+                row_id = row['id']
+                youtube_channel_name = row['youtube_channel_name']
+                youtube_playlist_id = row['youtube_playlist_id']
+                youtube_last_video_date = row['youtube_last_video_date']
+                response_videos = youtube_api.playlistItems().list(playlistId=youtube_playlist_id, part='snippet,contentDetails,status',maxResults=2).execute()
+                channel = self.bot.get_channel(row['channel_id'])
+                most_video_date = ''
+                if channel == None: continue
+                for video in response_videos['items']:
+                    video_published = datetime.datetime.strptime(video['snippet']['publishedAt'],'%Y-%m-%dT%H:%M:%SZ')
+                    video_title = video['snippet']['title']
+                    if video_published > youtube_last_video_date:
+                        self.bot.LLC.addlog(f'Найдено новое видео Youtube: [{youtube_channel_name}] "{video_title}"','youtube')
+                        if most_video_date == '': most_video_date = video_published
+                        if most_video_date < video_published : most_video_date = video_published
+                        video_url = 'https://www.youtube.com/watch?v='+video['contentDetails']['videoId']
+                        msgtext = f'@here На канале **{youtube_channel_name}** новое видео\n**{video_title}**\n{video_url}'
+                        await channel.send(content=msgtext)
+                if most_video_date != '' : self.bot.mysql.execute(f"UPDATE youtube_videos SET youtube_last_video_date = '{most_video_date}' WHERE id = {row_id}")
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************

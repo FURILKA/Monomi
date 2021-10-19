@@ -13,6 +13,8 @@ token  = config.get(section='bot',setting='token')
 owners = config.get(section='bot',setting='owners')
 twitch_id = config.get(section='twitch',setting='bot_client_id')
 twitch_secret = config.get(section='twitch',setting='bot_client_secret')
+youtube_api_key = config.get(section='youtube',setting='api_key')
+
 intents = discord.Intents.default()
 intents.members = True
 url = 'https://id.twitch.tv/oauth2/token'
@@ -28,6 +30,7 @@ bot.twitch_creds = {
     'secret': twitch_secret,
     'token' : twitch_token
     }
+bot.youtube_api_key = youtube_api_key
 bot.remove_command('help')
 bot.prefix = prefix
 bot.LLC = LocalLogCollector()
