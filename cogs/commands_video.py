@@ -207,10 +207,8 @@ class video(commands.Cog):
             # Если на задан ID канала Youtube или ссылка на канал для отслеживания - сообщаем об ошибке и выходим
             if channel_for_check == None or check_delay == None or youtube_channel_id == None:
                 msgtext = ''
-                self.bot.LLC.addlog('ID канала Youbute или ссылка на канал отслеживания не заданы')
-                if check_delay == None: msgtext += f'Период проверки не указан!'
-                if youtube_channel_id == None: msgtext += f'ID канала Youtube не указано!\n'
-                if channel_for_check == None: msgtext += f'Ссылка на канал для оповещений о новых видео не указана!\n'
+                self.bot.LLC.addlog('<#канал>, <периодичность> или <ID_канала> не заданы!')
+                msgtext += f'<#канал> <периодичность> или <ID\_канала> не заданы!\n'
                 embed=discord.Embed(color=color['red'])
                 embed.add_field(name=f':x: Ошибка', value=msgtext+msginfo, inline=False)
                 await ctx.send(embed=embed)
