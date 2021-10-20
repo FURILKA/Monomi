@@ -49,6 +49,7 @@ cogs_list = [
     'commands_owner.py',
     'commands_reactions.py',
     'commands_video.py',
+    'commands_debug.py',
     'on_errors.py',
     'on_member.py',
     'on_message.py',

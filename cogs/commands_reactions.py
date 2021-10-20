@@ -2,6 +2,7 @@ from discord.ext import commands
 from colors import color
 import discord
 from discord.utils import get
+from discord import File
 import inspect
 
 # ==================================================================================================================================================================
@@ -66,7 +67,7 @@ class reactions(commands.Cog):
             reactions = self.bot.reactions[guild.id]['message'] if guild.id in self.bot.reactions else []
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Проверяем, что в команду переданы оба аргумента, если нет - сообщаем пользователю об этом
-            if react_trigger == None or react_message == None:
+            if react_trigger == None or (react_message == None and ctx.message.attachments == []):
                 msgtext  = f'`Триггер реакции или текст реакции не указаны!`\n'
                 msgtext += f'Что бы создать реакцию введите команду в формате:\n'
                 msgtext += f'**{self.bot.prefix}{command_name}** ***<триггер> <текст сообщения>***\n'
@@ -80,19 +81,28 @@ class reactions(commands.Cog):
                 await ctx.send(embed=embed)
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Получаем аттач сообщения, если он есть
+            react_attach = ctx.message.attachments[0].url if ctx.message.attachments != [] else ''
+            if react_message == None: react_message = ''
+            react_trigger = react_trigger.lower()
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Для данного сервера рекций нет, т.к. это первая, просто добавляем её без задней мысли
             if reactions == []:
                 rid = 1
-                values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}',{str(member.id)},'{member.name}'"
-                self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
+                values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}','{react_attach}',{str(member.id)},'{member.name}'"
+                query = f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,react_attach,author_id,author_name) VALUES ({values})"
+                self.mysql.execute(query)
                 self.bot.reactions[guild.id] = {}
                 self.bot.reactions[guild.id]['message'] = []
-                self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message})
+                self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message,'attach':react_attach})
+                if react_message != '' and react_attach != '': react_message = react_message + '\n'+ react_attach
+                if react_message == '' and react_attach != '': react_message = react_attach
                 embed=discord.Embed(description='**<:success:878625363540983848> Реакция добавлена!**',color=color['green'])
                 embed.add_field(name=f'ID', value=f'#{str(rid)}', inline=False)
                 embed.add_field(name=f'Триггер', value=react_trigger, inline=False)
                 embed.add_field(name=f'Реакция', value=react_message, inline=False)
                 await ctx.send(embed=embed)
+                self.bot.LLC.addlog(f'[{guild.name}] добавлена новая реакция: {react_trigger=} {rid=}')
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Проверяем - нет ли на данном сервере реакции с таким триггером? Если есть - обновляем и пишем пользователю соответствующее сообщение
@@ -102,28 +112,39 @@ class reactions(commands.Cog):
                     rid = reaction['id']
                     query = f"""
                         UPDATE reactions_message 
-                        SET react_value = '{react_message}', author_id = {ctx.author.id}, author_name = '{ctx.author.name}', date_add = now()
-                        WHERE guild_id = {str(guild.id)} AND reaction_id = {str(rid)}"""
+                        SET
+                            react_value = '{react_message}',
+                            react_attach = '{react_attach}',
+                            author_id = {ctx.author.id},
+                            author_name = '{ctx.author.name}',
+                            date_add = now()
+                        WHERE guild_id = {str(guild.id)} AND react_trigger = '{react_trigger}'"""
                     self.mysql.execute(query)
                     self.bot.reactions[guild.id]['message'].remove(reaction)
-                    self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message})
+                    self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message,'attach':react_attach})
+                    if react_message != '' and react_attach != '': react_message = react_message + '\n'+ react_attach
+                    if react_message == '' and react_attach != '': react_message = react_attach
                     embed=discord.Embed(description='**<:success:878625363540983848> Реакция обновлена!**',color=color['green'])
                     embed.add_field(name=f'ID', value=f'#{str(rid)}', inline=False)
                     embed.add_field(name=f'Триггер', value=react_trigger, inline=False)
                     embed.add_field(name=f'Реакция', value=react_message, inline=False)
+                    self.bot.LLC.addlog(f'[{guild.name}] реакция обновлена: {react_trigger=} {rid=}')
                     await ctx.send(embed=embed)
                     return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Реакции с таким триггером на сервере нет. Это новая реакция. Значит добавляем её к списку реакций и в таблицу реакция + сообщение пользователю
             rid = self.mysql.execute(f"SELECT MAX(rm.reaction_id)+1 AS 'new_id' FROM reactions_message rm WHERE rm.guild_id = '{str(guild.id)}'")[0]['new_id']
             values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}',{str(member.id)},'{member.name}'"
-            self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
-            self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message})
+            self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message,'attach':react_attach})
+            if react_message != '' and react_attach != '': react_message = react_message + '\n'+ react_attach
+            if react_message == '' and react_attach != '': react_message = react_attach
             embed=discord.Embed(description='**<:success:878625363540983848> Реакция добавлена!**',color=color['green'])
             embed.add_field(name=f'ID', value=f'#{str(rid)}', inline=False)
             embed.add_field(name=f'Триггер', value=react_trigger, inline=False)
             embed.add_field(name=f'Реакция', value=react_message, inline=False)
             await ctx.send(embed=embed)
+            self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
+            self.bot.LLC.addlog(f'[{guild.name}] добавлена новая реакция: {react_trigger=} {rid=}')
             return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:

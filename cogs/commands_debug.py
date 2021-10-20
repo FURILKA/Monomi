@@ -1,10 +1,11 @@
 from discord.ext import commands
 from colors import color
+import random
 import discord
 import os,sys
-
+import urllib.request
 # ==================================================================================================================================================================
-class owner(commands.Cog):
+class debug(commands.Cog):
     # **************************************************************************************************************************************************************
     def __init__(self,bot):
         self.bot = bot
@@ -26,47 +27,51 @@ class owner(commands.Cog):
                 return(False)
         except Exception as error:
             self.LLC.addlog(str(error),'error')
-    # **************************************************************************************************************************************************************
-    # Перезагрузка когов
-    @commands.command(aliases = ["reload"])
-    async def command_reload(self,ctx):
+    
+        # **************************************************************************************************************************************************************
+    @commands.command(aliases = ["sendimage"])
+    async def command_sendimage(self,ctx):
         try:
-            command_name = 'reload'
-            guild = ctx.guild
-            member = ctx.author
-            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.id}"]')
-            if await self.isOwner(ctx) == False: return
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            self.LLC.addlog('Перезагружаем коги')
-            for filename in os.listdir(os.path.dirname(os.path.realpath(__file__))):
-                if filename.endswith('.py'):
-                    fn = f'cogs.{filename[:-3]}'
-                    self.LLC.addlog(f'Загружаем: "{fn}"')
-                    self.bot.unload_extension(fn)
-                    self.bot.load_extension(fn)
-            await ctx.send('Коги перезагружены')
-            self.LLC.addlog('Коги перезагружены')
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            url = "https://static-cdn.jtvnw.net/previews-ttv/live_user_figaxshow-500x300.jpg"
+            filename = str(random.randint(100000000000,999999999999))+'.jpg'
+            filepath = os.getcwd().replace('\\','/')+'/images/temp/'+filename
+            urllib.request.urlretrieve(url,filepath)
+            file = discord.File(filepath, filename=filename)
+            embed = discord.Embed()
+            embed.set_image(url="attachment://"+filename)
+            await ctx.channel.send(file=file, embed=embed)
+            os.remove(filepath)
         except Exception as error:
             self.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
-    # Перезагрузка всего бота
-    @commands.command(aliases = ["reboot"])
-    async def command_reboot(self,ctx):
+    @commands.command(aliases = ["emojilist"])
+    async def command_emojilist(self,ctx):
         try:
             guild = ctx.guild
-            member = ctx.author
-            self.LLC.addlog(f'Новая команда "{self.bot.prefix}reboot" [сервер: "{guild.name}", пользователь: "{member.name}"]')
-            if await self.isOwner(ctx) == False: return
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
-            embed = discord.Embed(description = "Перезапускаем бота...", color = color['green'])
-            self.LLC.addlog('Перезапускаем бота')
+            emojis = guild.emojis
+            emoji_dict = {'id':[],'name':[],'emoji':[]}
+            for emoji in emojis:
+                emoji_dict['id'].append(f'\<:{emoji.name}:{emoji.id}>')
+                emoji_dict['name'].append(str(emoji.name))
+                emoji_dict['emoji'].append(f'<:{emoji.name}:{emoji.id}>')
+            embed=discord.Embed(title=':gear: debug_command_emojilist',description='current server emoji list',color=color['green'])
+            embed.add_field(name=f'emoji', value='\n'.join(emoji_dict['emoji']), inline=True )
+            embed.add_field(name=f'id', value='\n'.join(emoji_dict['id']), inline=True)
+            embed.add_field(name=f'name', value='\n'.join(emoji_dict['name']), inline=True)
             await ctx.send(embed=embed)
-            await os.execv(sys.executable, ["python"] + sys.argv)
-            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            self.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    @commands.command(aliases = ["printemoji"])
+    async def command_printemoji(self,ctx,emoji_id):
+        try:
+            emoji_name = self.bot.emoji[emoji_id]
+            embed=discord.Embed(title='debug_command_printemoji',color=color['green'])
+            embed.add_field(name=f':gear: result', value=f'{emoji_name}', inline=False)
+            await ctx.send(embed=embed)
         except Exception as error:
             self.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
-    bot.add_cog(owner(bot))
+    bot.add_cog(debug(bot))

@@ -68,11 +68,17 @@ class owner(commands.Cog):
                     if result_reactions[reaction_type] != [] and result_reactions[reaction_type] != ():
                         r = {}
                         for reaction in result_reactions[reaction_type]:
+                            reaction_dict = {
+                                'id':reaction['reaction_id'],
+                                'trigger':  reaction['react_trigger'],
+                                'value': reaction['react_value'],
+                            }
                             guild_id = int(reaction['guild_id'])
-                            rid = reaction['reaction_id']
-                            trigger = reaction['react_trigger']
-                            value = reaction['react_value']
-                            reactions[guild_id][reaction_type].append({'id':rid,'trigger': trigger,'value': value})
+                            if 'react_attach' in reaction:
+                                reaction_dict['attach'] = reaction['react_attach']
+                            else:
+                                reaction_dict['attach'] = ''
+                            reactions[guild_id][reaction_type].append(reaction_dict)
                             result_dict = reactions.copy()
                 # словарь реакций готов, записываем его в бота
                 self.bot.reactions = result_dict

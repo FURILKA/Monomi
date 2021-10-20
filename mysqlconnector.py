@@ -20,22 +20,25 @@ class mySQLConnector(object):
     # **************************************************************************************************************************************************************
     # Выполнение sql-запроса
     def execute(self,request=''):
-        #try:
-        sqlCon = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.pwrd,
-            db=self.base,
-            cursorclass=pymysql.cursors.DictCursor
-            )
-        sqlCur = sqlCon.cursor()
-        sqlCur.execute(request)
-        result = sqlCur.fetchall()
-        sqlCon.commit()
-        sqlCur.close()
-        sqlCon.close()
-        return(result)
-        #except Exception as e:
-        #    self.LLC.addlog('error due executing SQL-request: ' + request,'error')
-        #    self.LLC.addlog(str(e),'error')
+        try:
+            sqlCon = pymysql.connect(
+                host=self.host,
+                user=self.user,
+                password=self.pwrd,
+                db=self.base,
+                cursorclass=pymysql.cursors.DictCursor
+                )
+            sqlCur = sqlCon.cursor()
+            sqlCur.execute(request)
+            result = sqlCur.fetchall()
+            sqlCon.commit()
+            sqlCur.close()
+            sqlCon.close()
+            return(result)
+        except Exception as e:
+            print('-'*60)
+            print(request)
+            print('-'*60)
+            self.LLC.addlog('error due executing SQL-request: ' + request,'error')
+            self.LLC.addlog(str(e),'error')
 # ==================================================================================================================================================================

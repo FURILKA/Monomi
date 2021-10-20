@@ -4,10 +4,13 @@ from discord.ext import tasks
 from twitchAPI.twitch import Twitch
 from colors import color
 from googleapiclient.discovery import build
+import random
 import requests
 import discord
 import datetime
 import asyncio
+import urllib.request
+import os
 # ==================================================================================================================================================================
 class loop_tasks(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -19,7 +22,7 @@ class loop_tasks(commands.Cog):
         self.youtube_check_new_videos.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=5)
     async def twich_check_streamers_online(self):
         try:
             if self.bot.IsOnlineNow == False: return
@@ -78,34 +81,32 @@ class loop_tasks(commands.Cog):
                     self.bot.LLC.addlog(f'Канал дискорд не найден: channel == none','twitch')
                     return               
                 if stream_info['data'][0]['type'] ==  'live' and row['twitch_user_status'] == 'offline':
-                    # Стрим онлайн. Но спешить не будем. Подождём чуток, после чего обновим информацию о стриме. Это нужно для того, что бы у твича
-                    # корректно обновилась вся информация о стриме, что бы мы не получили неактуальную информацию, типа старого снапшота трансляции
-                    await asyncio.sleep(5)
-                    # Подождали, получаем информацию о стриме ещё раз
-                    stream_info = requests.get(url=url,headers=headers).json()
-                    # Если стрим всё ещё онлайн - сообщаем об этом
-                    if stream_info['data'][0]['type'] ==  'live':
-                        user_name = stream_info['data'][0]['user_name']
-                        thumbnail_url = stream_info['data'][0]['thumbnail_url']
-                        thumbnail_url = thumbnail_url.replace('{width}','500').replace('{height}','300')
-                        self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] онлайн!','twitch')
-                        query = f"UPDATE twitch_streamers SET twitch_user_status = 'online', twitch_user_date = NOW() WHERE id = {row_id}"
-                        self.bot.mysql.execute(query)
-                        embed=discord.Embed(
-                            title=user_info['display_name'],
-                            description="Стрим онлайн!",
-                            color=color['green'],
-                            url=f'https://www.twitch.tv/{user_name}'
-                            )
-                        embed.add_field(
-                            name='Игра',
-                            value=stream_info['data'][0]['game_name'],
-                            inline=False)
-                        embed.set_thumbnail(url=user_info['profile_image_url'])
-                        embed.set_image(url=thumbnail_url)
-                        msgtext = f'@here\nКто-то внезапно начал трансляцию на твиче!\n⭐ https://www.twitch.tv/{user_name} ⭐\nПрисоединяйтесь, не пропустите!'
-                        await channel.send(embed=embed,content=msgtext)
-                        continue
+                    user_name = stream_info['data'][0]['user_name']
+                    thumbnail_url = stream_info['data'][0]['thumbnail_url']
+                    thumbnail_url = thumbnail_url.replace('{width}','500').replace('{height}','300')
+                    self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] онлайн!','twitch')
+                    query = f"UPDATE twitch_streamers SET twitch_user_status = 'online', twitch_user_date = NOW() WHERE id = {row_id}"
+                    self.bot.mysql.execute(query)
+                    embed=discord.Embed(
+                        title=user_info['display_name'],
+                        description="Стрим онлайн!",
+                        color=color['green'],
+                        url=f'https://www.twitch.tv/{user_name}')
+                    filename = str(random.randint(100000000000,999999999999))+'.jpg'
+                    filepath = os.getcwd().replace('\\','/')+'/images/temp/'+filename
+                    urllib.request.urlretrieve(thumbnail_url,filepath)
+                    file = discord.File(filepath, filename=filename)
+                    embed.set_image(url="attachment://"+filename)
+                    embed.add_field(
+                        name='Игра',
+                        value=stream_info['data'][0]['game_name'],
+                        inline=False)
+                    embed.set_thumbnail(url=user_info['profile_image_url'])
+                    msgtext = f'@here\nКто-то внезапно начал трансляцию на твиче!\n⭐ https://www.twitch.tv/{user_name} ⭐\nПрисоединяйтесь, не пропустите!'
+                    await channel.send(file=file, embed=embed,content=msgtext)
+                    await asyncio.sleep(10)
+                    os.remove(filepath)
+                    continue
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
