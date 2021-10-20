@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 from colors import color
 from twitchAPI.twitch import Twitch
@@ -133,6 +134,99 @@ class moderator(commands.Cog):
                 await ctx.send(embed=embed)
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext += f'Проверь корректность указания названий ролей'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    # Удаление <N> последних сообщений в #Канале (опционально: только сообщения <пользователя>)
+    @commands.command()
+    async def clear(self,ctx,msg_count=None,user=None):
+        try:
+            command_name = 'clear'
+            command_info  = f'\nЧто бы удалить сообщения введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<N> [пользователь]***\n'
+            command_info += f'**<N>**: количество последних сообщений в канале (от 1 до 100)\n'
+            command_info += f'**[пользователь]**: чьи сообщения будут удалены (опционально)\n'
+            command_info += f'Пользователь указывается как ID (прим.: FURILKA#5953) или пинг \n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            self.LLC.addlog(f'{self.bot.prefix}{command_name}" {msg_count=} {user=}')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # msg_count должно быть числом от 1 до 100 включительно, если передано что-то не так (или ничего не передано) сообщаем об ошибке
+            if msg_count == None or msg_count.isdigit()==False or int(msg_count)<1 or int(msg_count)>100:
+                msgtext = f'Количество сообщений для удаления указано некорректно!\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Количество сообщений для удаления указано некорректно!')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # В команде задано кол-во сообщений для удаления и НЕ задан пользователь, чьи сообщения удалять: удаляем последние N сообщений в канале
+            if msg_count != None and user == None:
+                await ctx.message.delete()
+                await ctx.channel.purge(limit=int(msg_count))
+                embed=discord.Embed(color=color['green'],description=':broom: Сообщения удалены!')
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(2)
+                await msg.delete()
+                self.LLC.addlog(f'В канале "{ctx.channel.name}" [{guild.name}] удалено {msg_count} последних сообщений')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # В команде задано И кол-во сообщений И пользователь, по которому сообщения нужно почистить
+            if msg_count != None and user != None:
+                member = guild.get_member_named(user)
+                # Такого пользователя на сервере нет, возможно его задали не как имя пользователя, а как пинг? попробуем получить объект пользователя из пинга
+                if member == None:
+                    if user[0:2] == '<@' and user[-1] == '>':
+                        user_id = int(user.replace('<@','').replace('>',''))
+                        member = guild.get_member(user_id)
+                if member == None:
+                    # Такого пользователя на сервере нет, сообщаем об ошибке и выходим
+                    embed=discord.Embed(color=color['red'])
+                    embed.add_field(name=f':x: Ошибка', value=f'Пользователь "{user}" не найден!', inline=False)
+                    msg = await ctx.send(embed=embed)
+                    self.LLC.addlog(f'Пользователь "{user}" не найден!')
+                    await asyncio.sleep(2)
+                    await msg.delete()
+                    return
+                else:
+                    messages = await ctx.channel.history(limit=200,oldest_first=False).flatten()
+                    deleted_count = 0
+                    for msg in messages:
+                        if msg.author == member:
+                            deleted_count += 1
+                            await msg.delete()
+                            if deleted_count == int(msg_count): break
+                    if deleted_count == 0:
+                        # Если ничего не удалили - сообщим об ошибке
+                        embed=discord.Embed(color=color['red'])
+                        embed.add_field(
+                            name=f':x: Ошибка',
+                            value=f'Сообщения пользователя {member.name} в каналей не найдены!',
+                            inline=False)
+                        self.LLC.addlog(f'Сообщения пользователя {member.name} в каналей не найдены!')
+                    else:
+                        # Если сообщения удалось найти и удалить - сообщим о результатах
+                        embed=discord.Embed(color=color['green'])
+                        embed.add_field(
+                            name=self.bot.emoji['success']+' Успех',
+                            value=f'Удалено **{deleted_count}** сообщений пользователя "{member.name}" в текущем канале',
+                            inline=False)
+                        self.LLC.addlog(f'Удалено {deleted_count} сообщений пользователя "{member.name}" в текущем канале')
+                    # Отправляем сообщение, ждём пару секунд, удаляем отправленное сообщение и выходим
+                    msg = await ctx.send(embed=embed)
+                    await asyncio.sleep(4)
+                    await msg.delete()
+                    return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            if await self.IsAdminOrModerator(ctx) == False: return
         except Exception as error:
             msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
             msgtext += f'||{str(error)}||\n'

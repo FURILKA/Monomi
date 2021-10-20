@@ -59,7 +59,9 @@ class LocalLogCollector(object):
                 values = ''
                 for row in self.logs_collection:
                     rows_to_delete.append(row)
-                    values += "('"+row['id']+"','"+str(row['date'])+"','"+row['type']+"','"+row['lib_name']+"','"+row['function_name']+"','"+row['message']+"'),"
+                    msg_text = row['message']
+                    msg_text = msg_text.replace("'","\\'")
+                    values += "('"+row['id']+"','"+str(row['date'])+"','"+row['type']+"','"+row['lib_name']+"','"+row['function_name']+"','"+msg_text+"'),"
                 values = values[0:-1]
                 config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
                 sqlCon = pymysql.connect(

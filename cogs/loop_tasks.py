@@ -57,7 +57,11 @@ class loop_tasks(commands.Cog):
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
                 # Стрим выключен, но в базе помечен как онлайн
                 if stream_info['data'] == [] and row['twitch_user_status'] == 'online':
-                    self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] закончился')
+                    channel = self.bot.get_channel(channel_id)
+                    if channel == None :
+                        self.bot.LLC.addlog(f'Канал дискорд не найден: channel == none','twitch')
+                        return
+                    self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] закончился','twitch')
                     query = f"UPDATE twitch_streamers SET twitch_user_status = 'offline', twitch_user_date = NOW() WHERE id = {row_id}"
                     self.bot.mysql.execute(query)
                     msgtext = f'Трансляция **{user_name}** закончилась!\nСпасибо, что были с нами!\nЖдём на следующих стримах!'
@@ -69,29 +73,39 @@ class loop_tasks(commands.Cog):
                     continue
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
                 # Стрим включен, в базе помечен как оффлайн
+                channel = self.bot.get_channel(channel_id)
+                if channel == None:
+                    self.bot.LLC.addlog(f'Канал дискорд не найден: channel == none','twitch')
+                    return               
                 if stream_info['data'][0]['type'] ==  'live' and row['twitch_user_status'] == 'offline':
-                    user_name = stream_info['data'][0]['user_name']
-                    thumbnail_url = stream_info['data'][0]['thumbnail_url']
-                    thumbnail_url = thumbnail_url.replace('{width}','500').replace('{height}','300')
-                    self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] онлайн!')
-                    query = f"UPDATE twitch_streamers SET twitch_user_status = 'online', twitch_user_date = NOW() WHERE id = {row_id}"
-                    self.bot.mysql.execute(query)
-                    channel = self.bot.get_channel(channel_id)
-                    embed=discord.Embed(
-                        title=user_info['display_name'],
-                        description="Стрим онлайн!",
-                        color=color['green'],
-                        url=f'https://www.twitch.tv/{user_name}'
-                        )
-                    embed.add_field(
-                        name='Игра',
-                        value=stream_info['data'][0]['game_name'],
-                        inline=False)
-                    embed.set_thumbnail(url=user_info['profile_image_url'])
-                    embed.set_image(url=thumbnail_url)
-                    msgtext = f'@here\nКто-то внезапно начал трансляцию на твиче!\n⭐ https://www.twitch.tv/{user_name} ⭐\nПрисоеденяйтесь, не пропустите!'
-                    await channel.send(embed=embed,content=msgtext)
-                    continue
+                    # Стрим онлайн. Но спешить не будем. Подождём чуток, после чего обновим информацию о стриме. Это нужно для того, что бы у твича
+                    # корректно обновилась вся информация о стриме, что бы мы не получили неактуальную информацию, типа старого снапшота трансляции
+                    await asyncio.sleep(5)
+                    # Подождали, получаем информацию о стриме ещё раз
+                    stream_info = requests.get(url=url,headers=headers).json()
+                    # Если стрим всё ещё онлайн - сообщаем об этом
+                    if stream_info['data'][0]['type'] ==  'live':
+                        user_name = stream_info['data'][0]['user_name']
+                        thumbnail_url = stream_info['data'][0]['thumbnail_url']
+                        thumbnail_url = thumbnail_url.replace('{width}','500').replace('{height}','300')
+                        self.bot.LLC.addlog(f'Стрим пользователя "{user_name}" [id:{user_id}] онлайн!','twitch')
+                        query = f"UPDATE twitch_streamers SET twitch_user_status = 'online', twitch_user_date = NOW() WHERE id = {row_id}"
+                        self.bot.mysql.execute(query)
+                        embed=discord.Embed(
+                            title=user_info['display_name'],
+                            description="Стрим онлайн!",
+                            color=color['green'],
+                            url=f'https://www.twitch.tv/{user_name}'
+                            )
+                        embed.add_field(
+                            name='Игра',
+                            value=stream_info['data'][0]['game_name'],
+                            inline=False)
+                        embed.set_thumbnail(url=user_info['profile_image_url'])
+                        embed.set_image(url=thumbnail_url)
+                        msgtext = f'@here\nКто-то внезапно начал трансляцию на твиче!\n⭐ https://www.twitch.tv/{user_name} ⭐\nПрисоединяйтесь, не пропустите!'
+                        await channel.send(embed=embed,content=msgtext)
+                        continue
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
