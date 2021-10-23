@@ -22,7 +22,7 @@ class loop_tasks(commands.Cog):
         self.youtube_check_new_videos.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
-    @tasks.loop(seconds=5)
+    @tasks.loop(minutes=1)
     async def twich_check_streamers_online(self):
         try:
             if self.bot.IsOnlineNow == False: return
@@ -111,7 +111,7 @@ class loop_tasks(commands.Cog):
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
-    @tasks.loop(seconds=10)
+    @tasks.loop(minutes=1)
     async def youtube_check_new_videos(self):
         try:
             if self.bot.IsOnlineNow == False: return
