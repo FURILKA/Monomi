@@ -111,15 +111,20 @@ class reactions(commands.Cog):
                 if reaction['trigger'].lower() == react_trigger.lower():
                     rid = reaction['id']
                     query = f"""
-                        UPDATE reactions_message 
-                        SET
+                        UPDATE 
+                            reactions_message
+                        SET 
                             react_value = '{react_message}',
                             react_attach = '{react_attach}',
                             author_id = {ctx.author.id},
                             author_name = '{ctx.author.name}',
                             date_add = now()
-                        WHERE guild_id = {str(guild.id)} AND react_trigger = '{react_trigger}'"""
-                    self.mysql.execute(query)
+                        WHERE 
+                            guild_id = {str(guild.id)}
+                            AND
+                            react_trigger = '{react_trigger}'
+                        """
+                    self.mysql.execute(request=query,NO_BACKSLASH_ESCAPES=True)
                     self.bot.reactions[guild.id]['message'].remove(reaction)
                     self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message,'attach':react_attach})
                     if react_message != '' and react_attach != '': react_message = react_message + '\n'+ react_attach
@@ -143,7 +148,14 @@ class reactions(commands.Cog):
             embed.add_field(name=f'Триггер', value=react_trigger, inline=False)
             embed.add_field(name=f'Реакция', value=react_message, inline=False)
             await ctx.send(embed=embed)
-            self.mysql.execute(f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name) VALUES ({values})")
+            self.mysql.execute(f"""
+                INSERT INTO 
+                    reactions_message
+                        (guild_id,guild_name,reaction_id,react_trigger,react_value,author_id,author_name)
+                    VALUES
+                        ({values})
+                    """,
+                    NO_BACKSLASH_ESCAPES=True)
             self.bot.LLC.addlog(f'[{guild.name}] добавлена новая реакция: {react_trigger=} {rid=}')
             return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------

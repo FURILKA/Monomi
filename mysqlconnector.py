@@ -19,7 +19,7 @@ class mySQLConnector(object):
         self.LLC  = LocalLogCollector
     # **************************************************************************************************************************************************************
     # Выполнение sql-запроса
-    def execute(self,request=''):
+    def execute(self,request='',NO_BACKSLASH_ESCAPES=False):
         try:
             sqlCon = pymysql.connect(
                 host=self.host,
@@ -29,6 +29,7 @@ class mySQLConnector(object):
                 cursorclass=pymysql.cursors.DictCursor
                 )
             sqlCur = sqlCon.cursor()
+            if NO_BACKSLASH_ESCAPES == True: sqlCur.execute("SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES'")
             sqlCur.execute(request)
             result = sqlCur.fetchall()
             sqlCon.commit()
