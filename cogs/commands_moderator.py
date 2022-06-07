@@ -237,6 +237,29 @@ class moderator(commands.Cog):
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
+    # Удаление сообщений в канале если оно старше <N> минут
+    @commands.command()
+    async def addclearbytimer(self,ctx,channel_target=None,minutes_count=None):
+        try:
+            command_name = 'addclearbytimer'
+            command_info  = f'\nДля настройки удаления сообщений введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<#канал> <N минут>***\n'
+            command_info += f'**<#канал>**: ссылка на канал (через # решетку)\n'
+            command_info += f'**<N минут>**: через сколько минут сообщения будут удалены\n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            self.LLC.addlog(f'{self.bot.prefix}{command_name}" {channel_target=} {minutes_count=}')
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            msgtext += f'Проверь корректность указания названий ролей'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(moderator(bot))
