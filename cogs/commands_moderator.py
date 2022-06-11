@@ -250,6 +250,152 @@ class moderator(commands.Cog):
             member = ctx.author
             self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
             self.LLC.addlog(f'{self.bot.prefix}{command_name}" {channel_target=} {minutes_count=}')
+            if await self.IsAdminOrModerator(ctx) == False: return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если в команду передан канал - проверяем, что канал указан в нормальном формате (через #)
+            if channel_target != None:
+                if channel_target[0:2] != '<#' and channel_target[-1] != '>':
+                    msgtext  = f'Ссылка на канал указана некорректно, возможно опечатка?\n'
+                    msgtext += f'Канал указывается как ссылка на канал через # (через решетку)\n'
+                    embed=discord.Embed(color=color['red'])
+                    embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                    await ctx.send(embed=embed)
+                    self.bot.LLC.addlog('Ссылка на канал указана некорректно, возможно опечатка?')
+                    return
+            channel_id = str(channel_target).replace('<#','').replace('>','')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем, что переданный ID канала в цифровом виде (а не просто написали "<#канал>")
+            if channel_id.isdigit() == False:
+                msgtext  = f'Ссылка на канал указана некорректно, возможно опечатка?\n'
+                msgtext += f'Канал указывается как ссылка на канал через # (через решетку)\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Ссылка на канал указана некорректно, возможно опечатка?')
+                return   
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Пытаемся открыть канал на сервере, проверяем что он открылся
+            channel_id = int(channel_id)
+            channel = guild.get_channel(channel_id)
+            if channel == None:
+                msgtext  = f'Не удалось найти указанный канал на сервере!\n'
+                msgtext += f'Проверьте:\n'
+                msgtext += f'1) Корректность указания канала\n'
+                msgtext += f'2) Права доступа бота к указанному каналу\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Не удалось найти указанный канал на сервере!')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # minutes_count должно быть числом от 1 до 1440 включительно, если передано что-то не так (или ничего не передано) сообщаем об ошибке
+            if minutes_count == None or minutes_count.isdigit()==False or int(minutes_count)<1 or int(minutes_count)>1440:
+                msgtext = f'Таймер для удаления сообщений указан некорректно!\nДолжно быть целое число от 1 до 1440\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Таймер для удаления сообщений указан некорректно!')
+                return
+            minutes_count = minutes_count
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Все, канал открыт, минуты указаны корректно - создаём/изменяем таймер удаления сообщений на канале
+            values = f"'{str(guild.id)}','{guild.name}',{str(channel.id)},'{channel.name}','{minutes_count}',{str(member.id)},'{member.name}'"
+            sqlresult = self.mysql.execute(f"SELECT * FROM channels_clearbytimer WHERE guild_id = {str(guild.id)} AND channel_id = {str(channel.id)}")
+            if sqlresult == () or sqlresult == []:
+                self.mysql.execute(f"INSERT INTO channels_clearbytimer(guild_id,guild_name,channel_id,channel_name,`interval`,author_id,author_name) VALUES ({values})")
+                msgtext = f'Таймер удаления сообщений установлен!'
+                self.bot.channels_clearbytimer[channel.id]={'guild_name':guild.name,'channel_name':channel.name,'interval':int(minutes_count)}
+            else:
+                last_timer = str(sqlresult[0]['interval'])
+                self.mysql.execute(f"""
+                    UPDATE 
+                        channels_clearbytimer 
+                    SET
+                        channel_name='{channel.name}',`interval`={str(minutes_count)},date_add=CURRENT_TIMESTAMP(),author_id={str(member.id)},author_name='{member.name}'
+                    WHERE
+                         guild_id = {str(guild.id)} AND channel_id = {str(channel.id)}
+                    """)
+                msgtext  = f'Таймер удаления сообщений изменен!\n'
+                msgtext += f'Прошлое значение таймера: {last_timer}\n'
+                msgtext += f'Новое значение таймера: {str(minutes_count)}\n'
+                self.bot.channels_clearbytimer[channel.id]={'guild_name':guild.name,'channel_name':channel.name,'interval':int(minutes_count)}
+            embed = discord.Embed(description = msgtext, color = color['green'])
+            await ctx.send(embed=embed)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    # Удаление сообщений в канале если оно старше <N> минут
+    @commands.command()
+    async def delclearbytimer(self,ctx,channel_target=None):
+        try:
+            command_name = 'delclearbytimer'
+            command_info  = f'\nДля отключения удаления сообщений введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<#канал>***\n'
+            command_info += f'**<#канал>**: ссылка на канал (через # решетку)\n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            self.LLC.addlog(f'{self.bot.prefix}{command_name}" {channel_target=}')
+            if await self.IsAdminOrModerator(ctx) == False: return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если в команду передан канал - проверяем, что канал указан в нормальном формате (через #)
+            if channel_target != None:
+                if channel_target[0:2] != '<#' and channel_target[-1] != '>':
+                    msgtext  = f'Ссылка на канал указана некорректно, возможно опечатка?\n'
+                    msgtext += f'Канал указывается как ссылка на канал через # (через решетку)\n'
+                    embed=discord.Embed(color=color['red'])
+                    embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                    await ctx.send(embed=embed)
+                    self.bot.LLC.addlog('Ссылка на канал указана некорректно, возможно опечатка?')
+                    return
+            channel_id = str(channel_target).replace('<#','').replace('>','')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем, что переданный ID канала в цифровом виде (а не просто написали "<#канал>")
+            if channel_id.isdigit() == False:
+                msgtext  = f'Ссылка на канал указана некорректно, возможно опечатка?\n'
+                msgtext += f'Канал указывается как ссылка на канал через # (через решетку)\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Ссылка на канал указана некорректно, возможно опечатка?')
+                return   
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Пытаемся открыть канал на сервере, проверяем что он открылся
+            channel_id = int(channel_id)
+            channel = guild.get_channel(channel_id)
+            if channel == None:
+                msgtext  = f'Не удалось найти указанный канал на сервере!\n'
+                msgtext += f'Проверьте:\n'
+                msgtext += f'1) Корректность указания канала\n'
+                msgtext += f'2) Права доступа бота к указанному каналу\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Не удалось найти указанный канал на сервере!')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Все, канал открыт, минуты указаны корректно - создаём/изменяем таймер удаления сообщений на канале
+            sqlresult = self.mysql.execute(f"SELECT * FROM channels_clearbytimer WHERE guild_id = {str(guild.id)} AND channel_id = {str(channel.id)}")
+            if sqlresult == () or sqlresult == []:
+                msgtext = f'Таймер удаления сообщений в канале не установлен'
+                embed = discord.Embed(description = msgtext,color = color['red'])
+                if channel.id in self.bot.channels_clearbytimer:
+                    self.bot.channels_clearbytimer.pop(channel.id)
+            else:
+                self.mysql.execute(f'DELETE FROM channels_clearbytimer WHERE guild_id = {str(guild.id)} AND channel_id = {str(channel.id)}')
+                msgtext = f'Таймер удаления сообщений в канале удален'
+                if channel.id in self.bot.channels_clearbytimer:
+                    self.bot.channels_clearbytimer.pop(channel.id)
+                embed = discord.Embed(description = msgtext,color = color['green'])
+            await ctx.send(embed=embed)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
             msgtext += f'||{str(error)}||\n'

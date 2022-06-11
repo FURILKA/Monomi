@@ -11,6 +11,7 @@ import datetime
 import asyncio
 import urllib.request
 import os
+import datetime
 # ==================================================================================================================================================================
 class loop_tasks(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -20,6 +21,7 @@ class loop_tasks(commands.Cog):
         self.mysql = bot.mysql
         self.twich_check_streamers_online.start()
         self.youtube_check_new_videos.start()
+        self.clear_messages_by_tymer.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
     @tasks.loop(minutes=1)
@@ -182,6 +184,32 @@ class loop_tasks(commands.Cog):
                     """
                     self.bot.mysql.execute(query)
                     self.bot.LLC.addlog(f'На канале "{youtube_channel_name}" новые видео отсутствуют','youtube')
+        except Exception as error:
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    @tasks.loop(seconds=10)
+    async def clear_messages_by_tymer(self):
+        try:
+            for channel_id in self.bot.channels_clearbytimer:
+                channel = self.bot.get_channel(channel_id)
+                if channel != None:
+                    msg_to_delete_cnt = 0
+                    guild_name = self.bot.channels_clearbytimer[channel_id]['guild_name']
+                    channel_name = self.bot.channels_clearbytimer[channel_id]['channel_name']
+                    interval = self.bot.channels_clearbytimer[channel_id]['interval']
+                    messages = await channel.history(limit=200,oldest_first=False).flatten()
+                    for message in messages:
+                        if message.pinned == False:
+                            diff = (datetime.datetime.utcnow()-message.created_at)
+                            diff_minutes = (diff.days * 24 * 60) + (diff.seconds/60)
+                            if diff_minutes >= interval:
+                                msg_to_delete_cnt = msg_to_delete_cnt + 1
+                                await message.delete()
+                    if msg_to_delete_cnt > 0:
+                        self.bot.LLC.addlog(f'На сервере "{guild_name}" в канале "{channel_name}" по таймеру = "{str(interval)}" удалено {str(msg_to_delete_cnt)} сообщений')
+                else:
+                    self.bot.LLC.addlog(f'Не удалось открыть канал {str(channel_id)}','warning')
+                    self.bot.channels_clearbytimer.pop(channel_id)
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************

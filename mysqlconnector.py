@@ -35,11 +35,10 @@ class mySQLConnector(object):
             sqlCon.commit()
             sqlCur.close()
             sqlCon.close()
-            return(result)
-        except Exception as e:
-            print('-'*60)
-            print(request)
-            print('-'*60)
-            self.LLC.addlog('error due executing SQL-request: ' + request,'error')
-            self.LLC.addlog(str(e),'error')
+        except Exception as error:
+            sqlerror = str(error)
+            self.LLC.addlog('error due executing SQL-request:\n' + request,'error')
+            self.LLC.addlog(sqlerror,'error')
+            raise pymysql.InternalError('Ошибка при обработке SQL-запроса')
+        return(result)
 # ==================================================================================================================================================================

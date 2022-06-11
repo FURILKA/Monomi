@@ -10,6 +10,7 @@ class owner(commands.Cog):
         self.bot = bot
         self.LLC = bot.LLC
         self.mysql = bot.mysql
+        self.bot.channels_clearbytimer = {}
     # **************************************************************************************************************************************************************
     @commands.Cog.listener()
     async def on_ready(self):
@@ -101,8 +102,22 @@ class owner(commands.Cog):
         # Загрузка команд
         def load_commands():
             try:
-                self.bot.commands_type = self.bot.mysql.execute(f"SELECT * FROM commands_types")
-                self.bot.commands_list = self.bot.mysql.execute(f"SELECT * FROM commands")
+                self.bot.commands_type = self.bot.mysql.execute(f"SELECT * FROM commands_types ORDER BY type_order ASC")
+                self.bot.commands_list = self.bot.mysql.execute(f"SELECT * FROM commands ORDER BY command_type ASC, command_order ASC")
+            except Exception as error:
+                self.LLC.addlog(str(error),'error')
+        # **********************************************************************************************************************************************************
+        # Загрузка каналов для очистки по таймеру
+        def load_clearbytimer():
+            try:
+                sqlresult = self.bot.mysql.execute(f"SELECT * FROM channels_clearbytimer")
+                if sqlresult != [] and sqlresult != ():
+                    for row in sqlresult:
+                        channel_id = row['channel_id']
+                        guild_name = row['guild_name']
+                        channel_name = row['channel_name']
+                        interval  = row['interval']
+                        self.bot.channels_clearbytimer[channel_id]={'guild_name':guild_name,'channel_name':channel_name,'interval':interval}
             except Exception as error:
                 self.LLC.addlog(str(error),'error')
         # **********************************************************************************************************************************************************
@@ -114,6 +129,8 @@ class owner(commands.Cog):
         load_reactions()
         self.bot.LLC.addlog('Загрузка эмодзи')
         load_emoji()
+        self.bot.LLC.addlog('Загрузка каналов очистки по таймеру')
+        load_clearbytimer()
         self.bot.LLC.addlog('Бот запущен и готов к работе')
         self.bot.IsOnlineNow = True
 # ==================================================================================================================================================================
