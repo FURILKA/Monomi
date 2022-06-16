@@ -167,6 +167,112 @@ class reactions(commands.Cog):
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
             self.bot.LLC.addlog(str(error),'error')
+        # **************************************************************************************************************************************************************
+    @commands.command()
+    async def delreactmessage(self,ctx,react=None):
+        try:
+            command_name = 'delreactmessage'
+            command_info  = f'\nДля удаления реакции введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<реакция>***\n'
+            command_info += f'**<реакция>**: номер (#id) реакции **или** триггер реакции\n'
+            command_info += f'При указании номера реакции перед номером нужно указать символ #\n'
+            command_info += f'Для получения списока доступных реакций: **{self.bot.prefix}listreactmessage**\n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"], react = "{str(react)}"')
+            if await self.IsAdminOrModerator(ctx) == False: return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем - передана ли реакция для удаления в команду?
+            if react == None:
+                msgtext  = f'Не указана реакция для удаления\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Не указана реакция для удаления')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем - есть ли на сервере вообще реакции, или нет?
+            if guild.id not in self.bot.reactions or 'message' not in self.bot.reactions[guild.id] or self.bot.reactions[guild.id]['message']==[]:
+                msgtext  = f'На данном сервере не найдено ни одной реакции\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('На данном сервере не найдено ни одной реакции')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Ищем реакцию в списке реакций сервера
+            react_id = None
+            react_text = None
+            if str(react)[0:1] == '#':
+                react_id = str(react).replace('#','')
+                if react_id.isdigit()==False:
+                    msgtext  = f'Номер (id) реакции для удаления указан некорректно\n'
+                    embed=discord.Embed(color=color['red'])
+                    embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                    await ctx.send(embed=embed)
+                    self.bot.LLC.addlog('Номер (id) реакции для удаления указан некорректно')
+                    return
+                else:
+                    react_id = int(react_id)
+            else:
+                react_text = str(react).lower()
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Ищем реакцию в списке реакций. Если указана реакция по ID - ищем её по ID. Если указана по тексту - ищем по тексту
+            found_react = {}
+            if react_id != None:
+                for raction in self.bot.reactions[guild.id]['message']:
+                    if react_id == raction['id']:
+                        found_react  = {
+                            'id':raction['id'],
+                            'trigger':  raction['trigger'],
+                            'value': raction['value']
+                            }
+                        if 'attach' in raction:
+                            found_react['attach'] = raction['attach']
+                        break
+                if found_react == {}:
+                    msgtext  = f'Реакция с указанным #ID на текущем сервере не найдена\n'
+            else:
+                for raction in self.bot.reactions[guild.id]['message']:
+                    if react_text == raction['trigger']:
+                        found_react  = {
+                            'id':raction['id'],
+                            'trigger':  raction['trigger'],
+                            'value': raction['value']
+                            }
+                        if 'attach' in raction:
+                            found_react['attach'] = raction['attach']
+                        break
+                if found_react == {}:
+                    msgtext  = f'Реакция с указанным триггером на текущем сервере не найдена\n'
+                    msgtext += f'Если вы указывали ID реакции: возможно вы забыли символ # ?\n'
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если реакция не нашлась ни по #ID ни по триггеру - сообщаем об ошибке
+            if found_react == {}:
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Реакция с указанным #ID на текущем сервере отсутствует')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Реакция нашлась, удаляем её из базы данных и из памяти бота
+            reaction_id = found_react['id']
+            self.mysql.execute(f"""DELETE FROM reactions_message WHERE guild_id = '{str(guild.id)}' AND reaction_id = {str(reaction_id)}""",NO_BACKSLASH_ESCAPES=True)
+            self.bot.reactions[guild.id]['message'].remove(found_react)
+            embed=discord.Embed(description='**<:success:878625363540983848> Реакция удалена!**',color=color['green'])
+            embed.add_field(name=f'ID', value='#'+str(found_react['id']), inline=False)
+            embed.add_field(name=f'Триггер', value=found_react['trigger'], inline=False)
+            await ctx.send(embed=embed)
+            return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'`{str(error)}`\n'
+            msgtext += f'Что-то пошло не так, не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
     @commands.command()
     async def listreactmessage(self,ctx):
