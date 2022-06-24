@@ -3,6 +3,7 @@ from colors import color
 import discord
 import os,sys
 import asyncio
+from discord_components import DiscordComponents
 # ==================================================================================================================================================================
 class owner(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -121,6 +122,8 @@ class owner(commands.Cog):
             except Exception as error:
                 self.LLC.addlog(str(error),'error')
         # **********************************************************************************************************************************************************
+        self.bot.LLC.addlog('Загрузка компонент')
+        DiscordComponents(self.bot)
         self.bot.LLC.addlog('Загрузка команд')
         load_commands()
         self.bot.LLC.addlog('Загрузка групп')

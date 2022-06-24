@@ -142,16 +142,16 @@ class loop_tasks(commands.Cog):
                 row_id = row['id']
                 check_delay = row['check_delay']
                 channel_id = row['channel_id']
+                channel = self.bot.get_channel(channel_id)
+                if channel == None:
+                    self.bot.LLC.addlog('Не удалось получить канал дискорд: continue == none','error')
+                    continue
                 youtube_channel_name = row['youtube_channel_name']
                 youtube_playlist_id = row['youtube_playlist_id']
                 youtube_last_video_date = row['youtube_last_video_date']
                 response_videos = youtube_api.playlistItems().list(playlistId=youtube_playlist_id, part='snippet,contentDetails,status',maxResults=2).execute()
-                channel = self.bot.get_channel(channel_id)
                 most_video_date = ''
                 self.bot.LLC.addlog(f'Истек срок проверки = {check_delay}ч канала "{youtube_channel_name}", ищем новые видео','youtube')
-                if channel == None:
-                    self.bot.LLC.addlog('Не удалось получить канал дискорд: continue == none','error')
-                    continue
                 for video in response_videos['items']:
                     video_published = datetime.datetime.strptime(video['snippet']['publishedAt'],'%Y-%m-%dT%H:%M:%SZ')
                     video_title = video['snippet']['title']

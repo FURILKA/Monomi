@@ -1,11 +1,17 @@
 import asyncio
+from msilib.schema import Component
+from turtle import title
+from certifi import contents
 from discord.ext import commands
 from colors import color
 from twitchAPI.twitch import Twitch
 import twitchAPI
 import discord
 import requests
+import datetime
 
+from discord_components import Button,ButtonStyle,DiscordComponents
+from discord.ext.forms import Form,ReactionForm
 # ==================================================================================================================================================================
 class moderator(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -56,6 +62,161 @@ class moderator(commands.Cog):
             return(IsAdminOrModerator)
         except Exception as error:
             self.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    #async def tags(inter: disnake.AppCmdInter):
+    #    await inter.response.send_modal(modal=MyModal())
+    # **************************************************************************************************************************************************************
+    @commands.command()
+    async def newdraw(self,ctx):
+        try:
+            command_name = 'newdraw'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            if await self.IsAdminOrModerator(ctx) == False: return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Задаем пользователю вопросы о новом розыгрыше
+            message_begin = await ctx.send(content='Окей, создаём новый розыгрыш, ответь на несколько вопросов:')
+            form = Form(ctx,'Создание нового розыгрыша')
+            form.add_question('Укажите название нового розыгрыша','draw_name')
+            form.add_question('Укажите дату окончания розыгрыша\nДата указывается формате "dd.mm.yyyy"','draw_end_date')
+            form.add_question('Укажите время окончания розыгрыша\nВремя указывается в формате "hh.mm"','draw_end_time')
+            form.add_question('В каком канале объявить результаты?\nКанал указывается через #','draw_channel')
+            form.add_question('Количество участников?\nЧисло, от 0 (не ограничено) до 50','draw_players_count')
+            form.add_question('Сколько будет разыгрываться призов?\nЧисло, не менее 1, но не более 10','draw_prize_count')
+            form.set_timeout(60)
+            result = await form.start()
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Получаем ответы на вопросы
+            draw_name = result.draw_name
+            draw_end_date = result.draw_end_date
+            draw_end_time = result.draw_end_time
+            draw_players_count = result.draw_players_count
+            draw_channel = result.draw_channel
+            draw_prize_count = result.draw_prize_count
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверяем их корректность
+            input_errors = []
+            # Проверяем дату розыгрыша
+            try:
+                end_date = datetime.datetime.strptime(draw_end_date, '%d.%m.%Y')
+                if end_date < datetime.datetime.now():
+                    input_errors.append('Указана некорректная дата окончания розыгрыша')
+            except ValueError:
+                input_errors.append('Дата розыгрыша не может быть меньше текущей')
+            # Проверяем время розыгрыша
+            try:
+                datetime.datetime.strptime(draw_end_time, '%H:%M')
+            except ValueError:
+                input_errors.append('Указано некорректное время окончания розыгрыша')
+            # Проверяем дату + время розыгрыша - не должны быть меньше текущей
+            if datetime.datetime.strptime(draw_end_date + ' ' + draw_end_time, '%d.%m.%Y %H:%M')<datetime.datetime.now():
+                input_errors.append('Дата/время розыгрыша не могут быть меньше текущих')
+            # Проверяем кол-во участников
+            if draw_players_count.isdigit()==False:
+                input_errors.append('Указано некорректное количество участников')
+            else:
+                if int(draw_players_count)<0 or int(draw_players_count)>50:
+                    input_errors.append('Указано некорректное количество участников')
+            # Проверяем количество призов
+            if draw_prize_count.isdigit()==False:
+                input_errors.append('Указано некорректное количество призов')
+            else:
+                if int(draw_prize_count)<1 or int(draw_prize_count)>10:
+                    input_errors.append('Указано некорректное количество призов')
+            # Проверяем канал розыгрыша
+            if draw_channel[0:2] != '<#' and draw_channel[-1] != '>':
+                input_errors.append('Указан некорректный канал объявления результатов')
+            # Если есть ошибки - сообщаем о них пользователю и выходим
+            if input_errors != []:
+                emoji_name = self.bot.emoji['error']
+                emoji_id =''.join(i for i in emoji_name if i.isdigit())
+                emoji_obj = self.bot.get_emoji(int(emoji_id))
+                embed=discord.Embed(title='Ошибка при создании розыгрыша',color=color['red'])
+                embed_value = ''
+                for error_name in input_errors:
+                    embed_value += f'{error_name}\n'
+                embed.add_field(name='Ну давай разберем по частям тобою написанное',value=embed_value,inline=False)
+                embed.set_thumbnail(url=str(emoji_obj.url))
+                embed.set_footer(text='Попробуй ещё раз и будь внимательнее :)')
+                message = await ctx.send(content=ctx.author.mention,embed=embed)
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Уточняем информацию о призах
+            if int(draw_prize_count) == 1:
+                message_prize = await ctx.send(content='Какой приз будем разыгрывать?')
+                form = Form(ctx,'Выбор приза')
+                form.add_question('Укажи наименование приза','draw_prize_name')
+                form.set_timeout(60)
+                result = await form.start()
+                draw_prize_name = result.draw_prize_name
+            else:
+                message_prize = await ctx.send(content='Теперь давай определимся с призами, что мы будем разыгрывать?')
+                form = Form(ctx,'Выбор призов')
+                form.set_timeout(60)
+                questions = []
+                for i in range(int(draw_prize_count)):
+                    question = f'Укажи наименование приза №{str(i+1)}'
+                    questions.append(question)
+                    form.add_question(question,f'draw_prize_name{str(i+1)}')
+                result = await form.start()
+                prizes = []
+                for i in range(int(draw_prize_count)):
+                    prizes.append(getattr(result,f'draw_prize_name{str(i+1)}'))
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Выводим пользователю итоговую информацию и спрашиваем подтверждение
+            components = [Button(style=ButtonStyle.green,label='Да'),Button(style=ButtonStyle.red, label='Нет')]
+            embed_name = 'Мы создаём новый розыгрыш'
+            embed_value  = f'Название розыгрыша: **{draw_name}**\n'
+            embed_value += f'Дата окончания розыгрыша: **{draw_end_date}**\n'
+            embed_value += f'Время окончания розыгрыша: **{draw_end_time}**\n'
+            embed_value += f'Канал объявления результатов: **{draw_channel}**\n'
+            if int(draw_players_count)==0:
+                embed_value += f'Максимальное количество участников: **Не ограничено**\n'
+            else:
+                embed_value += f'Максимальное количество участников: **{draw_players_count}**\n'
+            if int(draw_prize_count) == 1:
+                embed_value += f'Количество призов: **1**\n'
+                embed_value += f'\nПриз: **{draw_prize_name}**\n'
+            else:
+                embed_value += f'Количество призов: **{int(draw_prize_count)}**\n\n'
+                for i in range(int(draw_prize_count)):
+                    draw_prize_name = prizes[i]
+                    embed_value += f'Приз №{str(i+1)}: **{draw_prize_name}**\n'
+            embed=discord.Embed(title='Давай проверим введенные данные',color=color['green'])
+            embed.add_field(name=embed_name,value=embed_value + '\nВсё верно?',inline=False)
+            embed.set_footer(text='Подтвердите создания нового розыгрыша')
+            message = await ctx.send(embed=embed,components=[components])
+            response = await self.bot.wait_for('button_click')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Обрабатываем подтверждение
+            if response.channel == ctx.channel and response.author == ctx.author:
+                if response.component.label == 'Да':
+                    await message.edit(embed=embed,components=[])
+                    response.responded = True
+                    await message.delete()
+                    emoji_name = self.bot.emoji['success']
+                    emoji_id =''.join(i for i in emoji_name if i.isdigit())
+                    emoji_obj = self.bot.get_emoji(int(emoji_id))
+                    embed=discord.Embed(title='Розыгрыш успешно создан',color=color['green'])
+                    embed.add_field(name='Детали розыгрыша',value=embed_value,inline=False)
+                    embed.set_thumbnail(url=str(emoji_obj.url))
+                    message = await ctx.send(content=ctx.author.mention,embed=embed)
+                else:
+                    embed.color = color['gray']
+                    await message.edit(embed=embed,components=[])
+                    response.responded = True
+                    message = await ctx.send(content=ctx.author.mention+' понял, понял, вычеркиваю!')
+            return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
     @commands.command()
     async def textwelcome(self,ctx,channel_welcome=None,*,new_text_welcome=None):

@@ -5,3 +5,4 @@ config.ini
 /cogs/__pycache__/*
 /images/*
 /images/temp/*
+.idea/
