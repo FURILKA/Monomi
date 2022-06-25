@@ -217,7 +217,6 @@ class loop_tasks(commands.Cog):
     @tasks.loop(seconds=5)
     async def draw_check(self):
         try:
-            self.bot.LLC.addlog('start -> draw_check')
             for channel_id in self.bot.draws:
                 channel = self.bot.get_channel(channel_id)
                 if channel == None: continue
@@ -333,7 +332,6 @@ class loop_tasks(commands.Cog):
                         self.bot.mysql.execute(f"UPDATE draw_byguild SET status = 'Розыгрыш окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
                         self.bot.mysql.execute(f"UPDATE draw_players SET status = 'Розыгрыш окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
                         self.bot.mysql.execute(f"UPDATE draw_prizes SET status = 'окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
-            self.bot.LLC.addlog('end -> draw_check')
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
