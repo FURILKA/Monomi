@@ -2,6 +2,7 @@ from discord.ext import commands
 from colors import color
 import discord
 import random
+import datetime
 # ==================================================================================================================================================================
 class common(commands.Cog):
     # **************************************************************************************************************************************************************
@@ -81,6 +82,211 @@ class common(commands.Cog):
             msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
             msgtext += f'`{str(error)}`\n'
             msgtext += f'Что-то пошло не так, не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    # Показывает список розыгрышей на текущем сервере
+    @commands.command()
+    async def listdraw(self,ctx):
+        try:
+            command_name = 'listdraw'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Ищем розыгрышы на текущем сервере
+            current_draws = []
+            for channel_id in self.bot.draws:
+                for draw in self.bot.draws[channel_id]:
+                    if draw['guild_id']==ctx.guild.id:
+                        current_draws.append(draw)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если ничего не нашлось - сообщаем об этом и выходим
+            if current_draws == []:
+                emoji_name = self.bot.emoji['sadclownpepe']
+                emoji_id =''.join(i for i in emoji_name if i.isdigit())
+                emoji_obj = self.bot.get_emoji(int(emoji_id))
+                embed=discord.Embed(title='Грустно признавать, но...',color=color['gray'])
+                embed_value = f'Ничего не нашлось\n'
+                embed_value += f'В данный момент розыгрыши не проводятся\n'
+                embed.add_field(name='Никакого праздника!',value=embed_value,inline=False)
+                embed.set_thumbnail(url=str(emoji_obj.url))
+                await ctx.send(content=ctx.author.mention,embed=embed)
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Что-то все же нашлось, сообщим об этом
+            emoji_name = self.bot.emoji['CasinoChips']
+            emoji_id =''.join(i for i in emoji_name if i.isdigit())
+            emoji_obj = self.bot.get_emoji(int(emoji_id))
+            embed=discord.Embed(title='Активные розыгрыши',color=color['green'])
+            for draw in current_draws:
+                # Получаем информацию о призах розыгрыша
+                draw_id = draw['draw_id']
+                author = draw['author_name']
+                draw_date = datetime.datetime.strftime(draw['draw_date'],'%d.%m.%Y %H:%M')
+                draw_players_count = draw['draw_players_count']
+                result = self.bot.mysql.execute(f"SELECT * FROM draw_prizes WHERE draw_id = {str(draw_id)}")
+                embed_value = ''
+                players_count_now = len(self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)} AND is_active = 1"))
+                if result == [] or result == ():
+                    embed_value = f'ID розыгрыша: **#{str(draw_id)}**\n'
+                    embed_value += f'Организатор: **{author}**\n'
+                    if draw_players_count == 0:
+                        embed_value += f'Количество участников: **Не ограничено**\n'
+                    else:
+                        embed_value += f'Количество участников: **{str(players_count_now)}\\{str(draw_players_count)}**\n'
+                    embed_value += f'Объявление результатов: **{draw_date}**\n'
+                    embed_value += f'Очень странно: розыгрыш есть, а призов нет'
+                else:
+                    if len(result) == 1:
+                        prize_name = result[0]['prize_name']
+                        embed_value = f'ID розыгрыша: **#{str(draw_id)}**\n'
+                        embed_value += f'Организатор: **{author}**\n'
+                        if draw_players_count == 0:
+                            embed_value += f'Количество участников: **Не ограничено**\n'
+                        else:
+                            embed_value += f'Количество участников: **{str(players_count_now)}\\{str(draw_players_count)}**\n' 
+                        embed_value += f'Объявление результатов: **{draw_date}**\n'
+                        embed_value += f'Приз: **{prize_name}**\n'
+                    else:
+                        i = 1
+                        embed_value  = f'ID розыгрыша: **#{str(draw_id)}**\n'
+                        embed_value += f'Организатор: **{author}**\n'
+                        if draw_players_count == 0:
+                            embed_value += f'Количество участников: **Не ограничено**\n'
+                        else:
+                            embed_value += f'Количество участников: **{str(players_count_now)}\\{str(draw_players_count)}**\n'
+                        embed_value += f'Объявление результатов: **{draw_date}**\n'
+                        for row in result:
+                            prize_name = row['prize_name']
+                            embed_value += f'Приз №{str(i)}: **{prize_name}**\n'
+                            i += 1
+                embed.add_field(name=draw['draw_name'],value=embed_value,inline=False)
+            embed.set_thumbnail(url=str(emoji_obj.url))
+            embed.set_footer(text=f'Что бы принять участие используй команду: {self.bot.prefix}joindraw <#id>')
+            await ctx.send(content=ctx.author.mention,embed=embed)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    # Принять участие в розыгрыше
+    @commands.command()
+    async def joindraw(self,ctx, draw_id=None):
+        try:
+            command_name = 'joindraw'
+            command_info  = f'\nЧто бы принять участие в розыгрыше введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<#ID розыгрыша>***\n'
+            command_info += f'**<#ID розыгрыша>**: номер (ID), в котором вы хотите принять участие\n'
+            command_info += f'Получение списка активных розыгрышей: **{self.bot.prefix}listdraw**\n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим, что draw_id передан в команду
+            if draw_id == None:
+                msgtext  = f'Не указан ID розыгрыша, в котором вы хотите принять участие\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Не указан ID розыгрыша, в котором вы хотите принять участие')
+                return
+            draw_id = draw_id.replace('#','')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим, что переданный ID это число
+            if draw_id.isdigit()==False:
+                msgtext  = f'Указан некорректный ID розыгрыша\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Указан некорректный ID розыгрыша')
+                return
+            draw_id = int(draw_id)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # ID передан корректно, поищем такой розыгрыш в списке доступных розыгрышей
+            found_draw = None
+            for channel_id in self.bot.draws:
+                for draw in self.bot.draws[channel_id]:
+                    if draw_id==draw['draw_id'] and ctx.guild.id == draw['guild_id']:
+                        found_draw = draw.copy()
+                        break
+                if found_draw != None: break
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если мы не нашли розыгрыш с таким ID сообщим об этом пользователю
+            if found_draw == None:
+                msgtext  = f'Розыгрыш с указанным ID не найден\n'
+                msgtext += f'Проверьте ID розыгрыша и повторите попытку\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Розыгрыш с указанным ID не найден')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим - может быть пользователь УЖЕ является участником этого розыгрыша?
+            draw_id = found_draw['draw_id']
+            draw_name = found_draw['draw_name']
+            sql_result = self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)} AND player_id = {str(member.id)} AND is_active = 1")
+            if sql_result != () and sql_result != []:
+                msgtext  = f'{ctx.author.mention} ты **уже** являешься участником данного розыгрыша\n'
+                msgtext += f'Может быть ты хотел учавствовать в другом розыгрыше?\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Пользователь уже является участником розыгрыша')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим - не достигнут ли предел количества участников розыгрыша?
+            if found_draw['draw_players_count']>0:
+                sql_result = self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)} AND is_active = 1")
+                if len(sql_result)>=found_draw['draw_players_count']:
+                    draw_players_count = found_draw['draw_players_count']
+                    msgtext  = f'{ctx.author.mention} увы, но в розыгрыше уже принимает максимальное количество участников\n'
+                    msgtext += f'Всего организатором заявлено не более {str(draw_players_count)} участников\n'
+                    embed=discord.Embed(color=color['red'])
+                    embed.add_field(name=f':x: Ошибка', value=msgtext, inline=False)
+                    await ctx.send(embed=embed)
+                    self.bot.LLC.addlog('Достигнуто максимальное количество участников')
+                    return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            self.bot.mysql.execute(f"""
+                INSERT INTO draw_players
+                (
+                    player_id,
+                    player_name,
+                    draw_id,
+                    draw_name,
+                    guild_id,
+                    guild_name,
+                    status
+                )
+                VALUES
+                (
+                    {str(ctx.author.id)},
+                    '{ctx.author.name}',
+                    {str(draw_id)},
+                    '{draw_name}',
+                    {str(ctx.guild.id)},
+                    '{ctx.guild.name}',
+                    'Учавствует в розыгрыше'
+                )
+            """)
+            embed=discord.Embed(title='Новый участник розыгрыша',color=color['green'])
+            embed_value = f'{ctx.author.mention} принимает участие, желаем удачи!\n'
+            embed.add_field(name=found_draw['draw_name'],value=embed_value,inline=False)
+            embed.set_thumbnail(url=ctx.guild.icon_url)
+            await ctx.send(embed=embed)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)

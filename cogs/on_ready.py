@@ -11,7 +11,8 @@ class owner(commands.Cog):
         self.bot = bot
         self.LLC = bot.LLC
         self.mysql = bot.mysql
-        self.bot.channels_clearbytimer = {}
+        if hasattr(self.bot,'channels_clearbytimer')==False: self.bot.channels_clearbytimer = {}
+        if hasattr(self.bot,'draws')==False: self.bot.draws = {}
     # **************************************************************************************************************************************************************
     @commands.Cog.listener()
     async def on_ready(self):
@@ -122,6 +123,31 @@ class owner(commands.Cog):
             except Exception as error:
                 self.LLC.addlog(str(error),'error')
         # **********************************************************************************************************************************************************
+        # Загрузка розыгрышей
+        def load_draws():
+            try:
+                sqlresult = self.bot.mysql.execute(f"SELECT * FROM draw_byguild WHERE is_active = 1")
+                if sqlresult != [] and sqlresult != ():
+                    for row in sqlresult:
+                        draw_channel_id = row['draw_channel_id']
+                        if draw_channel_id not in self.bot.draws: self.bot.draws[draw_channel_id]=[]
+                        self.bot.draws[draw_channel_id].append({
+                            'draw_id': row['draw_id'],
+                            'draw_name': row['draw_name'],
+                            'guild_id': row['guild_id'],
+                            'guild_name': row['guild_name'],
+                            'draw_date': row['draw_date'],
+                            'draw_channel_id': row['draw_channel_id'],
+                            'draw_channel_name': row['draw_channel_name'],
+                            'draw_players_count': row['draw_players_count'],
+                            'dray_prizes_count': row['dray_prizes_count'],
+                            'author_id': row['author_id'],
+                            'author_name': row['author_name'],
+                            'status': row['status'],
+                        })
+            except Exception as error:
+                self.LLC.addlog(str(error),'error')
+        # **********************************************************************************************************************************************************
         self.bot.LLC.addlog('Загрузка компонент')
         DiscordComponents(self.bot)
         self.bot.LLC.addlog('Загрузка команд')
@@ -134,6 +160,8 @@ class owner(commands.Cog):
         load_emoji()
         self.bot.LLC.addlog('Загрузка каналов очистки по таймеру')
         load_clearbytimer()
+        self.bot.LLC.addlog('Загрузка информации о розыгрышах')
+        load_draws()
         self.bot.LLC.addlog('Бот запущен и готов к работе')
         self.bot.IsOnlineNow = True
 # ==================================================================================================================================================================

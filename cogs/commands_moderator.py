@@ -63,9 +63,7 @@ class moderator(commands.Cog):
         except Exception as error:
             self.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
-    #async def tags(inter: disnake.AppCmdInter):
-    #    await inter.response.send_modal(modal=MyModal())
-    # **************************************************************************************************************************************************************
+    # Создание нового розыгрыша
     @commands.command()
     async def newdraw(self,ctx):
         try:
@@ -100,8 +98,6 @@ class moderator(commands.Cog):
             # Проверяем дату розыгрыша
             try:
                 end_date = datetime.datetime.strptime(draw_end_date, '%d.%m.%Y')
-                if end_date < datetime.datetime.now():
-                    input_errors.append('Указана некорректная дата окончания розыгрыша')
             except ValueError:
                 input_errors.append('Дата розыгрыша не может быть меньше текущей')
             # Проверяем время розыгрыша
@@ -110,8 +106,13 @@ class moderator(commands.Cog):
             except ValueError:
                 input_errors.append('Указано некорректное время окончания розыгрыша')
             # Проверяем дату + время розыгрыша - не должны быть меньше текущей
-            if datetime.datetime.strptime(draw_end_date + ' ' + draw_end_time, '%d.%m.%Y %H:%M')<datetime.datetime.now():
-                input_errors.append('Дата/время розыгрыша не могут быть меньше текущих')
+            try:
+                if datetime.datetime.strptime(draw_end_date + ' ' + draw_end_time, '%d.%m.%Y %H:%M')<datetime.datetime.now():
+                    input_errors.append('Дата/время розыгрыша не могут быть меньше текущих')
+                else:
+                    draw_end_datetime = draw_end_date + ' ' + draw_end_time
+            except ValueError:
+                pass
             # Проверяем кол-во участников
             if draw_players_count.isdigit()==False:
                 input_errors.append('Указано некорректное количество участников')
@@ -127,6 +128,16 @@ class moderator(commands.Cog):
             # Проверяем канал розыгрыша
             if draw_channel[0:2] != '<#' and draw_channel[-1] != '>':
                 input_errors.append('Указан некорректный канал объявления результатов')
+            else:
+                channel_id = draw_channel.replace('<#','').replace('>','')
+                if channel_id.isdigit()==False:
+                    input_errors.append('Указан некорректный канал объявления результатов')
+                else:
+                    channel_id = int(channel_id)
+                    channel = self.bot.get_channel(channel_id)
+                    if channel == None:
+                        input_errors.append('Боту не удалось открыть указанный канал')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Если есть ошибки - сообщаем о них пользователю и выходим
             if input_errors != []:
                 emoji_name = self.bot.emoji['error']
@@ -143,6 +154,7 @@ class moderator(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Уточняем информацию о призах
+            prizes = []
             if int(draw_prize_count) == 1:
                 message_prize = await ctx.send(content='Какой приз будем разыгрывать?')
                 form = Form(ctx,'Выбор приза')
@@ -150,17 +162,18 @@ class moderator(commands.Cog):
                 form.set_timeout(60)
                 result = await form.start()
                 draw_prize_name = result.draw_prize_name
+                prizes.append(draw_prize_name)
             else:
                 message_prize = await ctx.send(content='Теперь давай определимся с призами, что мы будем разыгрывать?')
                 form = Form(ctx,'Выбор призов')
                 form.set_timeout(60)
                 questions = []
+                
                 for i in range(int(draw_prize_count)):
                     question = f'Укажи наименование приза №{str(i+1)}'
                     questions.append(question)
                     form.add_question(question,f'draw_prize_name{str(i+1)}')
                 result = await form.start()
-                prizes = []
                 for i in range(int(draw_prize_count)):
                     prizes.append(getattr(result,f'draw_prize_name{str(i+1)}'))
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -192,22 +205,232 @@ class moderator(commands.Cog):
             # Обрабатываем подтверждение
             if response.channel == ctx.channel and response.author == ctx.author:
                 if response.component.label == 'Да':
+                    # Если была нажата кнопка "Да"
+                    # Убираем кнопки с подтверждения
                     await message.edit(embed=embed,components=[])
                     response.responded = True
-                    await message.delete()
+                    # Записываем информацию о розыгрыше в базу данных
+                    self.mysql.execute(f"""
+                        INSERT INTO 
+                            draw_byguild
+                            (
+                                draw_name,
+                                guild_id,
+                                guild_name,
+                                draw_date,
+                                draw_channel_id,
+                                draw_channel_name,
+                                draw_players_count,
+                                dray_prizes_count,
+                                author_id,
+                                author_name,
+                                status
+                            ) 
+                        VALUES 
+                            (
+                                '{draw_name}',
+                                {str(ctx.guild.id)},
+                                '{ctx.guild.name}',
+                                STR_TO_DATE('{draw_end_datetime}','%d.%m.%Y %H:%i'),
+                                {str(channel_id)},
+                                '{channel.name}',
+                                {str(draw_players_count)},
+                                {str(draw_prize_count)},
+                                {str(ctx.author.id)},
+                                '{ctx.author.name}',
+                                'Ожидание розыгрыша'
+                            )
+                        """)
+                    # Получим ID созданной записи розыгрыша в базе данных
+                    sql_result = self.mysql.execute(f"""
+                        SELECT draw_id 
+                        FROM draw_byguild 
+                        WHERE guild_id = {str(ctx.guild.id)} 
+                        ORDER BY date_add DESC 
+                        LIMIT 1
+                        """)
+                    draw_id = sql_result[0]['draw_id']
+                    # Записываем информацию о призах в базу данных
+                    query = f'INSERT INTO draw_prizes (prize_name,draw_id,draw_name,guild_id,guild_name,status) VALUES '
+                    values = []
+                    for prize_name in prizes:
+                        values.append(
+                            f"('{prize_name}',{str(draw_id)},'{draw_name}',{str(ctx.guild.id)},'{ctx.guild.name}','Ожидание розыгрыша')"
+                        )
+                    query = query + ','.join(values)
+                    self.mysql.execute(query)
+                    # Записываем информацию о новом розыгрыше в параметр бота
+                    if channel_id not in self.bot.draws:
+                        self.bot.draws[channel_id]=[]
+                    self.bot.draws[channel_id].append({
+                            'draw_id': draw_id,
+                            'draw_name': draw_name,
+                            'guild_id': ctx.guild.id,
+                            'guild_name': ctx.guild.name,
+                            'draw_date': datetime.datetime.strptime(draw_end_datetime,'%d.%m.%Y %H:%M'),
+                            'draw_channel_id': channel.id,
+                            'draw_channel_name': channel.name,
+                            'draw_players_count': draw_players_count,
+                            'dray_prizes_count': draw_prize_count,
+                            'author_id': ctx.author.id,
+                            'author_name': ctx.author.name,
+                            'status': 'Ожидание розыгрыша'
+                        })
+                    # Подготавливаем сообщение с подтверждением
                     emoji_name = self.bot.emoji['success']
                     emoji_id =''.join(i for i in emoji_name if i.isdigit())
                     emoji_obj = self.bot.get_emoji(int(emoji_id))
                     embed=discord.Embed(title='Розыгрыш успешно создан',color=color['green'])
                     embed.add_field(name='Детали розыгрыша',value=embed_value,inline=False)
                     embed.set_thumbnail(url=str(emoji_obj.url))
+                    # Удаляем старое сообщение
+                    await message.delete()
+                    # Отправляемс ообщение с подтверждением
                     message = await ctx.send(content=ctx.author.mention,embed=embed)
                 else:
+                    # Если была нажата кнопка "Нет" выходим из функции
                     embed.color = color['gray']
                     await message.edit(embed=embed,components=[])
                     response.responded = True
                     message = await ctx.send(content=ctx.author.mention+' понял, понял, вычеркиваю!')
-            return
+                    return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+        except Exception as error:
+            msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
+            msgtext += f'||{str(error)}||\n'
+            msgtext += f'Что-то пошло не так, я не могу выполнить команду\n'
+            embed=discord.Embed(description='**Ошибка!**',color=color['red'])
+            embed.add_field(name=f':x:', value=msgtext, inline=False)
+            await ctx.send(embed=embed)
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
+    # Удаление существующего розыгрыша
+    @commands.command()
+    async def deldraw(self,ctx, draw_id=None):
+        try:
+            command_name = 'deldraw'
+            command_info  = f'\nДля удаления розыгрыша введите команду в формате:\n'
+            command_info += f'**{self.bot.prefix}{command_name}** ***<#ID розыгрыша>***\n'
+            command_info += f'**<#ID розыгрыша>**: номер (ID) розыгрыша для удаления\n'
+            command_info += f'Получение списка активных розыгрышей: **{self.bot.prefix}listdraw**\n'
+            guild = ctx.guild
+            member = ctx.author
+            self.LLC.addlog(f'Новая команда "{self.bot.prefix}{command_name}" [сервер: "{guild.name}", пользователь: "{member.name}"]')
+            if await self.IsAdminOrModerator(ctx) == False: return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим, что draw_id передан в команду
+            if draw_id == None:
+                msgtext  = f'Не указан ID розыгрыша для удаления\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Не указан ID розыгрыша для удаления')
+                return
+            draw_id = draw_id.replace('#','')
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Проверим, что переданный ID это число
+            if draw_id.isdigit()==False:
+                msgtext  = f'Указан некорректный ID розыгрыша\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Указан некорректный ID розыгрыша')
+                return
+            draw_id = int(draw_id)
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # ID передан корректно, поищем такой розыгрыш в списке доступных розыгрышей
+            found_draw = None
+            for channel_id in self.bot.draws:
+                for draw in self.bot.draws[channel_id]:
+                    if draw_id==draw['draw_id'] and ctx.guild.id == draw['guild_id']:
+                        found_draw = draw.copy()
+                        break
+                if found_draw != None: break
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Если мы не нашли розыгрыш с таким ID сообщим об этом пользователю
+            if found_draw == None:
+                msgtext  = f'Розыгрыш с указанным ID не найден\n'
+                msgtext += f'Проверьте ID розыгрыша и повторите попытку\n'
+                embed=discord.Embed(color=color['red'])
+                embed.add_field(name=f':x: Ошибка', value=msgtext+command_info, inline=False)
+                await ctx.send(embed=embed)
+                self.bot.LLC.addlog('Розыгрыш с указанным ID не найден')
+                return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Розыгрыш найден, спросим у пользователя подтверждение
+            prizes = []
+            sql_result = self.bot.mysql.execute(f"SELECT * FROM draw_prizes WHERE draw_id = {str(draw_id)}")
+            players_count_now = len(self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)}"))
+            for row in sql_result:
+                prizes.append(row['prize_name'])
+            components = [Button(style=ButtonStyle.green,label='Да'),Button(style=ButtonStyle.red, label='Нет')]
+            draw_name = found_draw['draw_name']
+            draw_date = datetime.datetime.strftime(found_draw['draw_date'],'%d.%m.%Y %H:%M')
+            draw_channel = '<#'+str(found_draw['draw_channel_id'])+'>'
+            draw_players_count = found_draw['draw_players_count']
+            dray_prizes_count = found_draw['dray_prizes_count']
+            draw_name = found_draw['draw_name']
+            embed_name = 'Ты собираешься отменить существующий розыгрыш'
+            embed_value  = f'Название розыгрыша: **{draw_name}**\n'
+            embed_value += f'Дата окончания розыгрыша: **{draw_date}**\n'
+            embed_value += f'Канал объявления результатов: **{draw_channel}**\n'
+            if int(draw_players_count)==0:
+                embed_value += f'Максимальное количество участников: **Не ограничено**\n'
+            else:
+                embed_value += f'Максимальное количество участников: **{draw_players_count}**\n'
+            embed_value += f'Приняло участие: **{str(players_count_now)}**\n'
+            if int(dray_prizes_count) == 1:
+                draw_prize_name = prizes[0]
+                embed_value += f'Количество призов: **1**\n'
+                embed_value += f'\nПриз: **{draw_prize_name}**\n'
+            elif int(dray_prizes_count) == 0:
+                embed_value += f'Количество призов: **0**\n'
+                embed_value += f'\nПризов нет, странно\n'
+            else:
+                embed_value += f'Количество призов: **{int(dray_prizes_count)}**\n\n'
+                for i in range(int(dray_prizes_count)):
+                    draw_prize_name = prizes[i]
+                    embed_value += f'Приз №{str(i+1)}: **{draw_prize_name}**\n'
+            embed=discord.Embed(title='Давай уточним',color=color['green'])
+            embed.add_field(name=embed_name,value=embed_value + '\nВсё верно? Отменяем розыгрыш?',inline=False)
+            embed.set_footer(text='Подтвердите создания нового розыгрыша')
+            message = await ctx.send(embed=embed,components=[components])
+            response = await self.bot.wait_for('button_click')
+            if response.channel == ctx.channel and response.author == ctx.author:
+                if response.component.label == 'Да':
+                    # Если была нажата кнопка "Да"
+                    # Убираем кнопки с подтверждения
+                    await message.edit(embed=embed,components=[])
+                    response.responded = True
+                else:
+                    await message.edit(embed=embed,components=[])
+                    response.responded = True
+                    await ctx.send(content=ctx.author.mention+' передумал, да ? Розыгрыш не был отменен')
+                    return
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Удалим розыгрыш из списка розыгрышей
+            for channel_id in self.bot.draws:
+                for draw in self.bot.draws[channel_id]:
+                    if draw == found_draw:
+                        self.bot.draws[channel_id].remove(found_draw)
+                        break
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Удалим его из базы данных
+            self.bot.mysql.execute(f"UPDATE draw_byguild SET status = 'Розыгрыш отменен', is_active = 0 WHERE draw_id = {str(draw_id)}")
+            self.bot.mysql.execute(f"UPDATE draw_players SET status = 'Розыгрыш отменен', is_active = 0 WHERE draw_id = {str(draw_id)}")
+            self.bot.mysql.execute(f"UPDATE draw_prizes SET status = 'Розыгрыш отменен', is_active = 0 WHERE draw_id = {str(draw_id)}")
+            # ------------------------------------------------------------------------------------------------------------------------------------------------------
+            # Сообщим пользователю о том, что всё получилось
+            emoji_name = self.bot.emoji['success']
+            emoji_id =''.join(i for i in emoji_name if i.isdigit())
+            emoji_obj = self.bot.get_emoji(int(emoji_id))
+            embed=discord.Embed(title='Розыгрыш отменен',color=color['green'])
+            embed.add_field(name='Детали розыгрыша',value=embed_value,inline=False)
+            embed.set_thumbnail(url=str(emoji_obj.url))
+            # Удаляем старое сообщение
+            await message.delete()
+            # Отправляемс ообщение с подтверждением
+            message = await ctx.send(content=ctx.author.mention,embed=embed)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             msgtext  = f'Команда: **{self.bot.prefix}{command_name}**\n'
