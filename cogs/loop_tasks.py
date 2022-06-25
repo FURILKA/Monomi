@@ -213,6 +213,25 @@ class loop_tasks(commands.Cog):
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
     # **************************************************************************************************************************************************************
+    @tasks.loop(seconds=5)
+    async def draw_check(self):
+        try:
+            self.bot.LLC.addlog('start -> draw_check')
+            for channel_id in self.bot.draws:
+                channel = self.bot.get_channel(channel_id)
+                if channel == None: continue
+                if self.bot.draws[channel_id] == []: continue
+                for draw in self.bot.draws[channel_id]:
+                    if draw['draw_date'] < datetime.datetime.now():
+                        await channel.send(content='@here дамы и господа, минуточку внимания!')
+                        async with channel.typing():
+                            await asyncio.sleep(3)
+                        await channel.send(content='спасибо за внимание!')
+                    continue
+            self.bot.LLC.addlog('end -> draw_check')
+        except Exception as error:
+            self.bot.LLC.addlog(str(error),'error')
+    # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(loop_tasks(bot))

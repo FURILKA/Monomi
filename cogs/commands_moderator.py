@@ -78,7 +78,7 @@ class moderator(commands.Cog):
             form = Form(ctx,'Создание нового розыгрыша')
             form.add_question('Укажите название нового розыгрыша','draw_name')
             form.add_question('Укажите дату окончания розыгрыша\nДата указывается формате "dd.mm.yyyy"','draw_end_date')
-            form.add_question('Укажите время окончания розыгрыша\nВремя указывается в формате "hh.mm"','draw_end_time')
+            form.add_question('Укажите время окончания розыгрыша\nВремя указывается в формате "hh:mm"','draw_end_time')
             form.add_question('В каком канале объявить результаты?\nКанал указывается через #','draw_channel')
             form.add_question('Количество участников?\nЧисло, от 0 (не ограничено) до 50','draw_players_count')
             form.add_question('Сколько будет разыгрываться призов?\nЧисло, не менее 1, но не более 10','draw_prize_count')
@@ -99,7 +99,7 @@ class moderator(commands.Cog):
             try:
                 end_date = datetime.datetime.strptime(draw_end_date, '%d.%m.%Y')
             except ValueError:
-                input_errors.append('Дата розыгрыша не может быть меньше текущей')
+                input_errors.append('Дата указана некорректно')
             # Проверяем время розыгрыша
             try:
                 datetime.datetime.strptime(draw_end_time, '%H:%M')

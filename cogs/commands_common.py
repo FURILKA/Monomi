@@ -243,10 +243,10 @@ class common(commands.Cog):
                 return
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Проверим - не достигнут ли предел количества участников розыгрыша?
-            if found_draw['draw_players_count']>0:
+            if int(found_draw['draw_players_count'])>0:
                 sql_result = self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)} AND is_active = 1")
-                if len(sql_result)>=found_draw['draw_players_count']:
-                    draw_players_count = found_draw['draw_players_count']
+                if len(sql_result)>=int(found_draw['draw_players_count']):
+                    draw_players_count = int(found_draw['draw_players_count'])
                     msgtext  = f'{ctx.author.mention} увы, но в розыгрыше уже принимает максимальное количество участников\n'
                     msgtext += f'Всего организатором заявлено не более {str(draw_players_count)} участников\n'
                     embed=discord.Embed(color=color['red'])
