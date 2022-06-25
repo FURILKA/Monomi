@@ -22,6 +22,7 @@ class loop_tasks(commands.Cog):
         self.twich_check_streamers_online.start()
         self.youtube_check_new_videos.start()
         self.clear_messages_by_tymer.start()
+        self.draw_check.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
     @tasks.loop(minutes=1)
@@ -223,11 +224,115 @@ class loop_tasks(commands.Cog):
                 if self.bot.draws[channel_id] == []: continue
                 for draw in self.bot.draws[channel_id]:
                     if draw['draw_date'] < datetime.datetime.now():
+                        draw_id = draw['draw_id']
+                        draw_author = '<@'+str(draw['author_id'])+'>'
+                        draw_name = draw['draw_name']
+                        players = []
+                        sql_result_players = self.bot.mysql.execute(f"SELECT * FROM draw_players WHERE draw_id = {str(draw_id)} AND is_active = 1")
+                        for player in sql_result_players:
+                            players.append(player['player_id'])
+                        prizes = []
+                        sql_result_prizes = self.bot.mysql.execute(f"SELECT prize_name FROM draw_prizes WHERE draw_id = {str(draw_id)} AND is_active = 1")
+                        for prize in sql_result_prizes:
+                            prizes.append(prize['prize_name'])
                         await channel.send(content='@here дамы и господа, минуточку внимания!')
-                        async with channel.typing():
-                            await asyncio.sleep(3)
-                        await channel.send(content='спасибо за внимание!')
-                    continue
+                        async with channel.typing(): await asyncio.sleep(5)
+                        await channel.send(content='Пришло время подвести итоги розыгрыша!')
+                        async with channel.typing(): await asyncio.sleep(5)
+                        await channel.send(content=f'Поприветствуем и поблагодарим организатора: {draw_author}')
+                        async with channel.typing(): await asyncio.sleep(2)
+                        await channel.send(content='Итак!')
+                        async with channel.typing(): await asyncio.sleep(5)
+                        await channel.send(content=f'Тема нашего сегодняшнего розыгрыша: **{draw_name}**')
+                        async with channel.typing(): await asyncio.sleep(5)
+                        if len(prizes)==1:
+                            prize_name = prizes[0]
+                            await channel.send(content=f'Разыгрываем приз: **{prize_name}** !')
+                        else:
+                            await channel.send(content=f'Разыгрываем призы:')
+                            i = 1
+                            for prize_name in prizes:
+                                async with channel.typing(): await asyncio.sleep(3)
+                                await channel.send(content=f'Приз №{str(i)}: **{prize_name}**')
+                        async with channel.typing(): await asyncio.sleep(5)
+                        await channel.send(content=f'Кому же сегодня улыбнется удача?')
+                        async with channel.typing(): await asyncio.sleep(3)
+                        await channel.send(content=f'Давайте начнем и узнаем!')
+                        async with channel.typing(): await asyncio.sleep(5)
+                        if players == []:
+                                await channel.send(content=f'Хммм....')
+                                async with channel.typing(): await asyncio.sleep(4)
+                                await channel.send(content=f'Очень странно, но... у нас нет участников!')
+                                async with channel.typing(): await asyncio.sleep(3)
+                                await channel.send(content=f'Вообще нет, ни одного!')
+                                async with channel.typing(): await asyncio.sleep(5)
+                                await channel.send(content=f'Ну что же, боюсь, нам не остается ничего, кроме как отменить розыгрыш')
+                                async with channel.typing(): await asyncio.sleep(4)
+                                await channel.send(content=f'Очень странно, очень жаль, всех благодарю за внимание')
+                        else:
+                            if len(players)>=4:
+                                p1, p2, p3 = random.sample(range(0, len(players)), 3)
+                                await channel.send(content=f'Может быть это будет <#' + players[p1] + '> ?')
+                                async with channel.typing(): await asyncio.sleep(2)
+                                await channel.send(content=f'Или <#' + players[p2] + '> ?')
+                                async with channel.typing(): await asyncio.sleep(4)
+                                await channel.send(content=f'Может быть это <#' + players[p3] + '> ?')
+                                async with channel.typing(): await asyncio.sleep(4)
+                                await channel.send(content=f'Или кто-то другой !?')
+                                async with channel.typing(): await asyncio.sleep(2)
+                                await channel.send(content=f'Кто знает, кто знает!')
+                                async with channel.typing(): await asyncio.sleep(3)
+                            if len(prizes)==1:
+                                await channel.send(content=f'Обладателем приза...!')
+                                async with channel.typing(): await asyncio.sleep(2)
+                                await channel.send(content=f'... становится !')
+                                async with channel.typing(): await asyncio.sleep(2)
+                                await channel.send(content=f'Обладателем приза становится... !')
+                                async with channel.typing(): await asyncio.sleep(6)
+                                winner_random = random.sample(range(0, len(players)), 1)[0]
+                                winner_id = players[winner_random]
+                                await channel.send(content=f'>>>> <@{str(winner_id)}> <<<<')
+                                async with channel.typing(): await asyncio.sleep(2)
+                                await channel.send(content='@here поздравляем победителя! Благодарим организатора и участников!')
+                            else:
+                                if len(players)>=len(prizes):
+                                    # Участников больше или равно чем призов
+                                    await channel.send(content=f'Обладателями призов...!')
+                                    async with channel.typing(): await asyncio.sleep(2)
+                                    await channel.send(content=f'... становятся !')
+                                    async with channel.typing(): await asyncio.sleep(2)
+                                    await channel.send(content=f'Обладателями призов становится... !')
+                                    async with channel.typing(): await asyncio.sleep(6)
+                                    for prize in prizes:
+                                        winner_random = random.sample(range(0, len(players)), 1)[0]
+                                        winner_id = players[winner_random]
+                                        await channel.send(content=f'Приз №1 **{prize}** выигрывает >>>> <@{str(winner_id)}> <<<<')
+                                        async with channel.typing(): await asyncio.sleep(5)
+                                        players.remove(winner_id)
+                                    await channel.send(content='@here поздравляем победителя! Благодарим организатора и участников!')
+                                else:
+                                    # Участников меньше, чем призов
+                                    await channel.send(content=f'Дамы и господа, у нас приключилась странная ситуация!')
+                                    async with channel.typing(): await asyncio.sleep(5)
+                                    await channel.send(content=f'Так вышло, что участников меньше, чем призов')
+                                    async with channel.typing(): await asyncio.sleep(6)
+                                    await channel.send(content=f'Увы, но один из призов не найдёт сегодня своего обладателя')
+                                    async with channel.typing(): await asyncio.sleep(5)
+                                    await channel.send(content=f'Другими словами: те кто участвуют не останутся без приза!')
+                                    async with channel.typing(): await asyncio.sleep(5)
+                                    await channel.send(content=f'Итак, что же сегодня получат счастливчики?')
+                                    async with channel.typing(): await asyncio.sleep(3)
+                                    await channel.send(content=f'Поехали!')
+                                    async with channel.typing(): await asyncio.sleep(5)
+                                    for player_id in players:
+                                        prize_random = random.sample(range(0, len(prizes)), 1)[0]
+                                        await channel.send(content=f'Приз №1 **{prize_random}** выигрывает >>>> <@{str(winner_id)}> <<<<')
+                                        async with channel.typing(): await asyncio.sleep(3)
+                                    await channel.send(content='@here поздравляем победителей! Благодарим организатора!')
+                    self.bot.draws[channel_id].remove(draw)
+                    self.bot.mysql.execute(f"UPDATE draw_byguild SET status = 'Розыгрыш окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
+                    self.bot.mysql.execute(f"UPDATE draw_players SET status = 'Розыгрыш окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
+                    self.bot.mysql.execute(f"UPDATE draw_prizes SET status = 'окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
             self.bot.LLC.addlog('end -> draw_check')
         except Exception as error:
             self.bot.LLC.addlog(str(error),'error')
