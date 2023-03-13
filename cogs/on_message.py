@@ -49,14 +49,14 @@ class onmessage(commands.Cog):
                             if attach != '' and attach != None:
                                 await message.channel.send(attach)
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # ----------------------------------------------------------------------------------------------------------------------------------------------------------
         try:
             if message.author == self.bot.user: return
             if message.author.bot == True: return
             await check_for_reaction(message)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
 def setup(bot):
     bot.add_cog(onmessage(bot))

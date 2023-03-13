@@ -54,7 +54,7 @@ class reactions(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             return(IsAdminOrModerator)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def addreactmessage(self,ctx,react_trigger=None,*,react_message=None):
@@ -166,8 +166,8 @@ class reactions(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
-        # **************************************************************************************************************************************************************
+            self.bot.LLC.adderrorlog()
+    # **************************************************************************************************************************************************************
     @commands.command()
     async def delreactmessage(self,ctx,react=None):
         try:
@@ -272,7 +272,7 @@ class reactions(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def listreactmessage(self,ctx):
@@ -314,7 +314,7 @@ class reactions(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(reactions(bot))

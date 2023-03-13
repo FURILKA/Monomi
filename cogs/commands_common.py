@@ -85,7 +85,7 @@ class common(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Показывает список розыгрышей на текущем сервере
     @commands.command()
@@ -175,7 +175,7 @@ class common(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Принять участие в розыгрыше
     @commands.command()
@@ -290,7 +290,7 @@ class common(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Отказаться от участия в розыгрыше
     @commands.command()
@@ -376,7 +376,7 @@ class common(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def infodraw(self,ctx, draw_id=None):
@@ -501,7 +501,7 @@ class common(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(common(bot))

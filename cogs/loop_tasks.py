@@ -23,6 +23,7 @@ class loop_tasks(commands.Cog):
         self.youtube_check_new_videos.start()
         self.clear_messages_by_tymer.start()
         self.draw_check.start()
+        self.export_logs.start()
     # **************************************************************************************************************************************************************
     # Получение информации об начале трансляции стримов
     @tasks.loop(minutes=1)
@@ -112,7 +113,7 @@ class loop_tasks(commands.Cog):
                     continue
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @tasks.loop(minutes=1)
     async def youtube_check_new_videos(self):
@@ -186,11 +187,12 @@ class loop_tasks(commands.Cog):
                     self.bot.mysql.execute(query)
                     self.bot.LLC.addlog(f'На канале "{youtube_channel_name}" новые видео отсутствуют','youtube')
         except Exception as error:
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @tasks.loop(seconds=10)
     async def clear_messages_by_tymer(self):
         try:
+            if self.bot.IsOnlineNow == False: return
             for channel_id in self.bot.channels_clearbytimer:
                 channel = self.bot.get_channel(channel_id)
                 if channel != None:
@@ -199,20 +201,25 @@ class loop_tasks(commands.Cog):
                     channel_name = self.bot.channels_clearbytimer[channel_id]['channel_name']
                     interval = self.bot.channels_clearbytimer[channel_id]['interval']
                     messages = await channel.history(limit=200,oldest_first=False).flatten()
+                    list_msg_to_delete = []
                     for message in messages:
                         if message.pinned == False:
                             diff = (datetime.datetime.utcnow()-message.created_at)
                             diff_minutes = (diff.days * 24 * 60) + (diff.seconds/60)
                             if diff_minutes >= interval:
-                                msg_to_delete_cnt = msg_to_delete_cnt + 1
-                                await message.delete()
-                    if msg_to_delete_cnt > 0:
-                        self.bot.LLC.addlog(f'На сервере "{guild_name}" в канале "{channel_name}" по таймеру = "{str(interval)}" удалено {str(msg_to_delete_cnt)} сообщений')
+                                list_msg_to_delete.append(message)
+                    if list_msg_to_delete != []:
+                        self.bot.LLC.addlog(f'В канале "{channel_name}" ({guild_name}) найдено {len(list_msg_to_delete)} сообщений для удаления')
+                        i = 1
+                        for message in list_msg_to_delete:
+                            self.bot.LLC.addlog(f'Удаляем сообщение по таймеру: {i} из {len(list_msg_to_delete)}')
+                            await message.delete()
+                            i += 1
                 else:
                     self.bot.LLC.addlog(f'Не удалось открыть канал {str(channel_id)}','warning')
                     self.bot.channels_clearbytimer.pop(channel_id)
-        except Exception as error:
-            self.bot.LLC.addlog(str(error),'error')
+        except Exception:
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @tasks.loop(seconds=5)
     async def draw_check(self):
@@ -333,7 +340,14 @@ class loop_tasks(commands.Cog):
                         self.bot.mysql.execute(f"UPDATE draw_players SET status = 'Розыгрыш окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
                         self.bot.mysql.execute(f"UPDATE draw_prizes SET status = 'окончен', is_active = 0 WHERE draw_id = {str(draw_id)}")
         except Exception as error:
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
+    # **************************************************************************************************************************************************************
+    @tasks.loop(minutes=3,reconnect=True)
+    async def export_logs(self):
+        try:
+            self.bot.LLC.export()
+        except Exception as error:
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):

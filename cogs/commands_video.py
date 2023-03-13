@@ -54,7 +54,7 @@ class video(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             return(IsAdminOrModerator)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def twitchcheckadd(self,ctx,channel_for_check = None,*,twich_user_name = None):
@@ -184,7 +184,7 @@ class video(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def youtubecheckadd(self,ctx,channel_for_check = None,check_delay = None,youtube_channel_id = None):
@@ -324,7 +324,7 @@ class video(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext+msginfo, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
             return
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================

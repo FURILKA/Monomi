@@ -41,7 +41,7 @@ class owner(commands.Cog):
                         roles[guild_id][role_type].append(role_id)
                 self.bot.roles = roles
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         # Загрузка реакций
         def load_reactions():
@@ -86,7 +86,7 @@ class owner(commands.Cog):
                 # словарь реакций готов, записываем его в бота
                 self.bot.reactions = result_dict
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         # Загрузка эмодзи
         def load_emoji():
@@ -99,7 +99,7 @@ class owner(commands.Cog):
                     emojis[emoji_name] = emoji_text
                 self.bot.emoji = emojis
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         # Загрузка команд
         def load_commands():
@@ -107,7 +107,7 @@ class owner(commands.Cog):
                 self.bot.commands_type = self.bot.mysql.execute(f"SELECT * FROM commands_types ORDER BY type_order ASC")
                 self.bot.commands_list = self.bot.mysql.execute(f"SELECT * FROM commands ORDER BY command_type ASC, command_order ASC")
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         # Загрузка каналов для очистки по таймеру
         def load_clearbytimer():
@@ -121,7 +121,7 @@ class owner(commands.Cog):
                         interval  = row['interval']
                         self.bot.channels_clearbytimer[channel_id]={'guild_name':guild_name,'channel_name':channel_name,'interval':interval}
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         # Загрузка розыгрышей
         def load_draws():
@@ -146,7 +146,7 @@ class owner(commands.Cog):
                             'status': row['status'],
                         })
             except Exception as error:
-                self.LLC.addlog(str(error),'error')
+                self.LLC.adderrorlog()
         # **********************************************************************************************************************************************************
         self.bot.LLC.addlog('Загрузка компонент')
         DiscordComponents(self.bot)

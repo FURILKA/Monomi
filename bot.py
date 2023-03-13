@@ -1,4 +1,4 @@
-from logger import LocalLogCollector
+from logger import logger
 from discord.ext import commands
 from configurator import configurator
 from mysqlconnector import mySQLConnector
@@ -6,7 +6,7 @@ import discord
 import requests
 import os
 # ==================================================================================================================================================================
-config = configurator(os.path.dirname(os.path.realpath(__file__))+"\config\config.ini")
+config = configurator(os.path.dirname(os.path.realpath(__file__))+"/config/config.ini")
 prefix = config.get(section='bot',setting='prefix')
 token  = config.get(section='bot',setting='token')
 owners = config.get(section='bot',setting='owners')
@@ -31,7 +31,7 @@ bot.twitch_creds = {
 bot.youtube_api_key = youtube_api_key
 bot.remove_command('help')
 bot.prefix = prefix
-bot.LLC = LocalLogCollector()
+bot.LLC = logger()
 bot.owners = owners.split(';')
 bot.mysql = mySQLConnector(
     host=config.get(section='mySQL',setting='host'),

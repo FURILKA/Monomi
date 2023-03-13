@@ -26,7 +26,7 @@ class debug(commands.Cog):
                 await ctx.send(embed=embed)
                 return(False)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     
         # **************************************************************************************************************************************************************
     @commands.command(aliases = ["sendimage"])
@@ -42,7 +42,7 @@ class debug(commands.Cog):
             await ctx.channel.send(file=file, embed=embed)
             os.remove(filepath)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command(aliases = ["emojilist"])
     async def command_emojilist(self,ctx):
@@ -60,7 +60,7 @@ class debug(commands.Cog):
             embed.add_field(name=f'name', value='\n'.join(emoji_dict['name']), inline=True)
             await ctx.send(embed=embed)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command(aliases = ["printemoji"])
     async def command_printemoji(self,ctx,emoji_id):
@@ -70,7 +70,7 @@ class debug(commands.Cog):
             embed.add_field(name=f':gear: result', value=f'{emoji_name}', inline=False)
             await ctx.send(embed=embed)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):

@@ -43,7 +43,7 @@ class errors(commands.Cog):
             embed.add_field(name=f':x: Ошибка', value=msg_text, inline=False)
             await ctx.send(embed=embed)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
 # ==================================================================================================================================================================
 def setup(bot):
     bot.add_cog(errors(bot))

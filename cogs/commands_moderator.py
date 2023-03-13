@@ -1,13 +1,7 @@
 import asyncio
-from msilib.schema import Component
-from turtle import title
-from certifi import contents
 from discord.ext import commands
 from colors import color
-from twitchAPI.twitch import Twitch
-import twitchAPI
 import discord
-import requests
 import datetime
 
 from discord_components import Button,ButtonStyle,DiscordComponents
@@ -61,7 +55,7 @@ class moderator(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             return(IsAdminOrModerator)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Создание нового розыгрыша
     @commands.command()
@@ -302,7 +296,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Удаление существующего розыгрыша
     @commands.command()
@@ -439,7 +433,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     @commands.command()
     async def textwelcome(self,ctx,channel_welcome=None,*,new_text_welcome=None):
@@ -526,7 +520,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Удаление <N> последних сообщений в #Канале (опционально: только сообщения <пользователя>)
     @commands.command()
@@ -619,7 +613,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Удаление сообщений в канале если оно старше <N> минут
     @commands.command()
@@ -713,7 +707,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # Удаление сообщений в канале если оно старше <N> минут
     @commands.command()
@@ -788,7 +782,7 @@ class moderator(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):

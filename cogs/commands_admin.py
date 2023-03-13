@@ -45,7 +45,7 @@ class admin(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             return(isAdmin)
         except Exception as error:
-            self.LLC.addlog(str(error),'error')
+            self.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # команда "adminrole": если переданы аргументы - устанавливает админские роли сервера, без аргументов - показывает текущие админские роли
     @commands.command()
@@ -125,7 +125,7 @@ class admin(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # команда "welcomerole": если переданы аргументы - устанавливает приветственные роли сервера, без аргументов - показывает текущие приветственные роли
     @commands.command()
@@ -205,7 +205,7 @@ class admin(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
     # команда "adminrole": если переданы аргументы - устанавливает админские роли сервера, без аргументов - показывает текущие админские роли
     @commands.command()
@@ -285,7 +285,7 @@ class admin(commands.Cog):
             embed=discord.Embed(description='**Ошибка!**',color=color['red'])
             embed.add_field(name=f':x:', value=msgtext, inline=False)
             await ctx.send(embed=embed)
-            self.bot.LLC.addlog(str(error),'error')
+            self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
 # ==================================================================================================================================================================
 def setup(bot):
