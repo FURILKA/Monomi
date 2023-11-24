@@ -62,7 +62,7 @@ class owner(commands.Cog):
             embed = discord.Embed(description = "Перезапускаем бота...", color = color['green'])
             self.LLC.addlog('Перезапускаем бота')
             await ctx.send(embed=embed)
-            await os.execv(sys.executable, ["python"] + sys.argv)
+            await os.execv(sys.executable, ["python3"] + sys.argv)
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
         except Exception as error:
             self.LLC.adderrorlog()
