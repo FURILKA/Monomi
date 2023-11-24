@@ -284,11 +284,11 @@ class loop_tasks(commands.Cog):
                         else:
                             if len(players)>=4:
                                 p1, p2, p3 = random.sample(range(0, len(players)), 3)
-                                await channel.send(content=f'Может быть это будет <#' + str(players[p1]) + '> ?')
+                                await channel.send(content=f'Может быть это будет <@' + str(players[p1]) + '> ?')
                                 async with channel.typing(): await asyncio.sleep(2)
-                                await channel.send(content=f'Или <#' + str(players[p2]) + '> ?')
+                                await channel.send(content=f'Или <@' + str(players[p2]) + '> ?')
                                 async with channel.typing(): await asyncio.sleep(4)
-                                await channel.send(content=f'Может быть это <#' + str(players[p3]) + '> ?')
+                                await channel.send(content=f'Может быть это <@' + str(players[p3]) + '> ?')
                                 async with channel.typing(): await asyncio.sleep(4)
                                 await channel.send(content=f'Или кто-то другой !?')
                                 async with channel.typing(): await asyncio.sleep(2)
