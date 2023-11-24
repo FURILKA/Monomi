@@ -44,7 +44,13 @@ class loop_tasks(commands.Cog):
                 headers = {
                     'Authorization':f'Bearer ' + self.bot.twitch_creds['token'],
                     'Client-Id': self.bot.twitch_creds['client']}
-                user_info = requests.get(url=url,headers=headers).json()['data'][0]
+                
+                resp = requests.get(url=url,headers=headers).json()
+                try:
+                    user_info = resp['data'][0]
+                except Exception as ex:
+                    self.bot.LLC.addlog(f'{resp=}','error')
+                    raise ex
                 # -------------------------------------------------------------------------------------------------------------------------------------------------
                 # Получаем информацию о стриме пользователя по его id
                 url = f'https://api.twitch.tv/helix/streams?user_id={user_id}'
@@ -278,11 +284,11 @@ class loop_tasks(commands.Cog):
                         else:
                             if len(players)>=4:
                                 p1, p2, p3 = random.sample(range(0, len(players)), 3)
-                                await channel.send(content=f'Может быть это будет <#' + players[p1] + '> ?')
+                                await channel.send(content=f'Может быть это будет <#' + str(players[p1]) + '> ?')
                                 async with channel.typing(): await asyncio.sleep(2)
                                 await channel.send(content=f'Или <#' + players[p2] + '> ?')
                                 async with channel.typing(): await asyncio.sleep(4)
-                                await channel.send(content=f'Может быть это <#' + players[p3] + '> ?')
+                                await channel.send(content=f'Может быть это <#' + str(players[p3]) + '> ?')
                                 async with channel.typing(): await asyncio.sleep(4)
                                 await channel.send(content=f'Или кто-то другой !?')
                                 async with channel.typing(): await asyncio.sleep(2)
@@ -309,10 +315,12 @@ class loop_tasks(commands.Cog):
                                     async with channel.typing(): await asyncio.sleep(2)
                                     await channel.send(content=f'Обладателями призов становится... !')
                                     async with channel.typing(): await asyncio.sleep(6)
+                                    prize_number = 1
                                     for prize in prizes:
                                         winner_random = random.sample(range(0, len(players)), 1)[0]
                                         winner_id = players[winner_random]
-                                        await channel.send(content=f'Приз №1 **{prize}** выигрывает >>>> <@{str(winner_id)}> <<<<')
+                                        await channel.send(content=f'Приз №{str(prize_number)} **{prize}** выигрывает >>>> <@{str(winner_id)}> <<<<')
+                                        prize_number += 1
                                         async with channel.typing(): await asyncio.sleep(5)
                                         players.remove(winner_id)
                                     await channel.send(content='@here поздравляем победителя! Благодарим организатора и участников!')
@@ -330,9 +338,11 @@ class loop_tasks(commands.Cog):
                                     async with channel.typing(): await asyncio.sleep(3)
                                     await channel.send(content=f'Поехали!')
                                     async with channel.typing(): await asyncio.sleep(5)
+                                    prize_number = 1
                                     for player_id in players:
                                         prize_random = random.sample(range(0, len(prizes)), 1)[0]
-                                        await channel.send(content=f'Приз №1 **{prize_random}** выигрывает >>>> <@{str(winner_id)}> <<<<')
+                                        await channel.send(content=f'Приз №{str(prize_number)} **{prize_random}** выигрывает >>>> <@{str(player_id)}> <<<<')
+                                        prize_number += 1
                                         async with channel.typing(): await asyncio.sleep(3)
                                     await channel.send(content='@here поздравляем победителей! Благодарим организатора!')
                         self.bot.draws[channel_id].remove(draw)
@@ -342,7 +352,7 @@ class loop_tasks(commands.Cog):
         except Exception as error:
             self.bot.LLC.adderrorlog()
     # **************************************************************************************************************************************************************
-    @tasks.loop(minutes=3,reconnect=True)
+    @tasks.loop(seconds=10,reconnect=True)
     async def export_logs(self):
         try:
             self.bot.LLC.export()
