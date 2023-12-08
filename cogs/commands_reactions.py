@@ -4,6 +4,7 @@ import discord
 from discord.utils import get
 from discord import File
 import inspect
+import base64
 
 # ==================================================================================================================================================================
 class reactions(commands.Cog):
@@ -89,7 +90,8 @@ class reactions(commands.Cog):
             # Для данного сервера рекций нет, т.к. это первая, просто добавляем её без задней мысли
             if reactions == []:
                 rid = 1
-                values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}','{react_attach}',{str(member.id)},'{member.name}'"
+                react_message_base64 = base64.b64encode(react_message.encode(encoding='utf-8')).decode(encoding='utf-8')
+                values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}',FROM_BASE64('{react_message_base64}'),'{react_attach}',{str(member.id)},'{member.name}'"
                 query = f"INSERT INTO reactions_message(guild_id,guild_name,reaction_id,react_trigger,react_value,react_attach,author_id,author_name) VALUES ({values})"
                 self.mysql.execute(query)
                 self.bot.reactions[guild.id] = {}
@@ -110,11 +112,12 @@ class reactions(commands.Cog):
                 # Ищем реакцию с таким тригером в списке реакций
                 if reaction['trigger'].lower() == react_trigger.lower():
                     rid = reaction['id']
+                    react_message_base64 = base64.b64encode(react_message.encode(encoding='utf-8')).decode(encoding='utf-8')
                     query = f"""
                         UPDATE 
                             reactions_message
                         SET 
-                            react_value = '{react_message}',
+                            react_value = FROM_BASE64('{react_message_base64}'),
                             react_attach = '{react_attach}',
                             author_id = {ctx.author.id},
                             author_name = '{ctx.author.name}',
@@ -139,6 +142,7 @@ class reactions(commands.Cog):
             # ------------------------------------------------------------------------------------------------------------------------------------------------------
             # Реакции с таким триггером на сервере нет. Это новая реакция. Значит добавляем её к списку реакций и в таблицу реакция + сообщение пользователю
             rid = self.mysql.execute(f"SELECT MAX(rm.reaction_id)+1 AS 'new_id' FROM reactions_message rm WHERE rm.guild_id = '{str(guild.id)}'")[0]['new_id']
+            
             values = f"'{str(guild.id)}','{guild.name}',{str(rid)},'{react_trigger}','{react_message}',{str(member.id)},'{member.name}'"
             self.bot.reactions[guild.id]['message'].append({'id':rid,'trigger': react_trigger.lower(),'value': react_message,'attach':react_attach})
             if react_message != '' and react_attach != '': react_message = react_message + '\n'+ react_attach
